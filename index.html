@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Glowing 3-Lane Portrait Engine</title>
+    <title>Midnight X: Parry Stun & Combat Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -30,16 +30,15 @@
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-1 sm:p-4">
 
-    <!-- PORTRAIT CONTAINER (OPTIMIZED FOR IPHONE / MOBILE) -->
+    <!-- PORTRAIT CONTAINER (OPTIMIZED FOR IPHONE) -->
     <div id="game-app" class="relative w-full max-w-sm aspect-[9/16] bg-black rounded-3xl overflow-hidden shadow-2xl border-2 border-zinc-800 flex flex-col cursor-grab active:cursor-grabbing">
         
         <!-- TOP HUD OVERLAY -->
         <div id="hud" class="absolute top-0 left-0 right-0 z-30 p-3 bg-gradient-to-b from-black/90 via-black/60 to-transparent flex flex-col gap-2 pointer-events-none">
-            <!-- Top Status Line -->
             <div class="flex justify-between items-center">
                 <div class="text-left">
-                    <div id="clock-display" class="text-xs font-black text-violet-400 font-mono">10:00 AM</div>
-                    <div id="phase-display" class="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">3-Lane Corridor</div>
+                    <div id="clock-display" class="text-xs font-black text-violet-400 font-mono">MON 09:00 AM</div>
+                    <div id="phase-display" class="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Main Hallway (P1)</div>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -47,14 +46,13 @@
                         CURSED (-20 HP)
                     </div>
                     <div id="turn-badge" class="hidden px-2 py-0.5 bg-black/80 border border-zinc-700 rounded-full text-[8px] font-black text-zinc-400 uppercase tracking-wider">
-                        CHARGING ATB...
+                        CHARGING STAMINA...
                     </div>
                 </div>
             </div>
 
-            <!-- Health & ATB Bars -->
+            <!-- Health & Stamina Bars -->
             <div class="grid grid-cols-2 gap-2">
-                <!-- Health Bar -->
                 <div class="flex flex-col">
                     <div class="flex justify-between text-[9px] font-black tracking-wider uppercase text-rose-400">
                         <span>HP</span>
@@ -65,10 +63,9 @@
                     </div>
                 </div>
 
-                <!-- Action ATB Bar -->
                 <div class="flex flex-col">
                     <div class="flex justify-between text-[9px] font-black tracking-wider uppercase text-amber-400">
-                        <span>ATB</span>
+                        <span>STAMINA</span>
                         <span id="stamina-text">100%</span>
                     </div>
                     <div class="w-full h-2 bg-zinc-900 rounded-full overflow-hidden border border-zinc-700">
@@ -82,6 +79,12 @@
         <canvas id="gameCanvas" class="w-full h-full object-cover block"></canvas>
         <div class="absolute inset-0 scanlines pointer-events-none opacity-40"></div>
 
+        <!-- BLINDNESS / DISORIENTED OVERLAY -->
+        <div id="blind-overlay" class="absolute inset-0 z-35 bg-black/95 hidden flex-col items-center justify-center p-4 pointer-events-none transition-opacity duration-300">
+            <div class="text-rose-500 font-black text-sm uppercase tracking-widest animate-ping mb-2">BLINDED & DISORIENTED!</div>
+            <p class="text-[9px] text-zinc-400 text-center">Interrupted during Heavy Charge! Vision obscured!</p>
+        </div>
+
         <!-- SWIPE GESTURE CUE BANNER -->
         <div class="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-11/12 text-center">
             <div id="gesture-cue" class="bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/40 text-[8px] font-bold text-emerald-400 tracking-wider uppercase shadow-lg inline-flex items-center gap-1.5">
@@ -90,49 +93,112 @@
             </div>
         </div>
 
-        <!-- DIALOGUE MODAL OVERLAY -->
-        <div id="dialogue-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-end p-4">
-            <div class="bg-zinc-900 border-2 border-violet-600/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
-                <div class="flex items-center gap-2 border-b border-zinc-800 pb-2">
-                    <div class="w-8 h-8 rounded-full bg-pink-600 border-2 border-white flex items-center justify-center font-black text-xs text-white">A</div>
-                    <div>
-                        <h3 class="font-black text-pink-400 text-xs">Anya (Popular Group)</h3>
-                        <p class="text-[9px] text-zinc-400">Right Lane [Lane 2, Depth 3]</p>
-                    </div>
+        <!-- INTERSECTION TURN ARROWS OVERLAY -->
+        <div id="intersection-ui" class="absolute inset-x-4 top-28 z-30 hidden justify-between items-center pointer-events-auto">
+            <button id="turn-left-btn" class="px-3 py-2 bg-violet-950/90 border-2 border-violet-500 text-violet-200 rounded-xl text-xs font-black shadow-lg active:scale-95 transition flex items-center gap-1">
+                ◄ TURN LEFT
+            </button>
+            <span class="text-[8px] font-extrabold text-amber-400 bg-black/90 px-2 py-1 rounded-full border border-amber-500/50 uppercase tracking-widest animate-pulse">
+                3x3 CROSSING HALL
+            </span>
+            <button id="turn-right-btn" class="px-3 py-2 bg-violet-950/90 border-2 border-violet-500 text-violet-200 rounded-xl text-xs font-black shadow-lg active:scale-95 transition flex items-center gap-1">
+                TURN RIGHT ►
+            </button>
+        </div>
+
+        <!-- CLASSROOM SELECTION MODAL -->
+        <div id="class-modal" class="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm hidden flex-col justify-center p-4">
+            <div class="bg-zinc-900 border-2 border-violet-600 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
+                <div class="border-b border-zinc-800 pb-2">
+                    <h3 id="class-title" class="font-black text-violet-400 text-xs title-font">PERIOD 1: SELECT CLASSROOM</h3>
+                    <p class="text-[9px] text-zinc-400">Attending class consumes 2 hours of in-game time.</p>
                 </div>
-                <p class="text-xs text-zinc-200 leading-relaxed">
-                    "Xio! Be real with me... do you actually think I need to study for Chemistry, or am I naturally gifted enough to pass without trying?"
-                </p>
-                <div id="dialogue-choices" class="flex flex-col gap-2 pt-1">
-                    <!-- Dynamic Choices -->
-                </div>
+                <div id="class-options" class="flex flex-col gap-2"></div>
             </div>
         </div>
 
-        <!-- RESULTS / DAYBREAK MODAL -->
+        <!-- LUNCH PERIOD MODAL -->
+        <div id="lunch-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
+            <div class="bg-zinc-900 border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full text-center">
+                <h3 class="font-black text-amber-400 text-sm title-font">12:00 PM — LUNCH BELL</h3>
+                <p class="text-xs text-zinc-300">The lunch bell rings! You have 1 conversation window. Choose wisely—talking to one classmate causes the others to head off to lunch!</p>
+                <button id="start-lunch-btn" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black rounded-xl text-xs active:scale-95 transition">
+                    ENTER LUNCH HALLWAY
+                </button>
+            </div>
+        </div>
+
+        <!-- DAD'S WORKSHOP MODAL -->
+        <div id="dad-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
+            <div class="bg-zinc-900 border-2 border-rose-600/80 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
+                <div class="border-b border-zinc-800 pb-2">
+                    <h3 class="font-black text-rose-400 text-sm title-font">3:00 PM — EXTERMINATOR VAN</h3>
+                    <p class="text-[9px] text-zinc-400">Meet Dad to gear up for the Midnight Hunt.</p>
+                </div>
+                <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 text-[10px] space-y-1 text-zinc-300">
+                    <div>Clues Collected: <strong id="clues-count-text" class="text-amber-400">0</strong></div>
+                    <div>Curse Status: <strong id="curse-summary-text" class="text-emerald-400">CLEAN</strong></div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] font-bold text-zinc-400 uppercase">Equip Sub-Weapon:</label>
+                    <select id="subweapon-select" class="w-full p-2 bg-zinc-800 border border-zinc-700 text-white rounded-xl text-xs font-bold">
+                        <option value="TALISMAN">Stun Talisman (Stuns Cryptid)</option>
+                        <option value="HOLY_WATER">Holy Water Splash (+25 Holy Damage)</option>
+                        <option value="SILVER_BLADE">Silver Edge (+20 Critical Slash)</option>
+                    </select>
+                </div>
+                <button id="start-hunt-btn" class="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs active:scale-95 transition shadow-lg shadow-rose-900/50">
+                    BEGIN MIDNIGHT HUNT
+                </button>
+            </div>
+        </div>
+
+        <!-- DIALOGUE MODAL -->
+        <div id="dialogue-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-end p-4">
+            <div class="bg-zinc-900 border-2 border-violet-600/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
+                <div class="flex items-center gap-2 border-b border-zinc-800 pb-2">
+                    <div id="npc-avatar" class="w-8 h-8 rounded-full bg-pink-600 border-2 border-white flex items-center justify-center font-black text-xs text-white">A</div>
+                    <div>
+                        <h3 id="dialogue-npc-name" class="font-black text-pink-400 text-xs">Anya (Popular Group)</h3>
+                        <p id="dialogue-npc-sub" class="text-[9px] text-zinc-400">Right Lane (+20m Time)</p>
+                    </div>
+                </div>
+                <p id="dialogue-body-text" class="text-xs text-zinc-200 leading-relaxed"></p>
+                <div id="dialogue-choices" class="flex flex-col gap-2 pt-1"></div>
+            </div>
+        </div>
+
+        <!-- RESULTS MODAL -->
         <div id="results-modal" class="absolute inset-0 z-50 bg-black/95 hidden flex-col items-center justify-center p-6 text-center">
             <h2 id="res-title" class="text-2xl font-black text-violet-400 title-font mb-1">HUNT CONCLUDED</h2>
-            <p id="res-subtitle" class="text-[10px] text-zinc-400 mb-6">The 3-lane anomaly zone has been resolved.</p>
+            <p id="res-subtitle" class="text-[10px] text-zinc-400 mb-6">The anomaly zone has been resolved.</p>
             <div id="res-stats" class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-left text-xs space-y-2 w-full mb-6"></div>
             <button id="res-btn" class="w-full py-3 bg-violet-600 hover:bg-violet-500 font-black rounded-xl text-white transition active:scale-95 shadow-lg shadow-violet-900/40 text-xs">
-                START NEXT DAY
+                START NEXT SCHOOL DAY
             </button>
         </div>
 
         <!-- PORTRAIT BOTTOM ACTION CONTROLS -->
         <div id="touch-controls" class="absolute bottom-3 left-3 right-3 z-20 pointer-events-none opacity-90">
-            <div id="action-btn-group" class="grid grid-cols-3 gap-2 pointer-events-auto">
-                <button id="pad-action-slash" class="py-2.5 bg-zinc-100 active:bg-zinc-300 hover:bg-white text-zinc-950 rounded-xl font-black text-xs border border-white flex flex-col items-center justify-center shadow">
-                    <span>SLASH</span>
-                    <span class="text-[8px] text-zinc-600 font-extrabold">[Z]</span>
+            <!-- Daytime Exploration Action Bar -->
+            <div id="daytime-btn-group" class="flex justify-end pointer-events-auto">
+                <button id="time-skip-btn" class="px-4 py-2.5 bg-violet-600/90 active:bg-violet-500 hover:bg-violet-500 text-white rounded-xl font-black text-xs border border-violet-400 flex items-center gap-1.5 shadow-lg shadow-violet-950/60 backdrop-blur-md">
+                    <span>⏩ TIME SKIP (+30m)</span>
                 </button>
-                <button id="pad-action-heavy" class="py-2.5 bg-violet-600 active:bg-violet-500 hover:bg-violet-500 text-white rounded-xl font-black text-xs border border-violet-400 flex flex-col items-center justify-center shadow">
-                    <span>HEAVY</span>
-                    <span class="text-[8px] text-violet-200 font-extrabold">[X]</span>
+            </div>
+
+            <!-- 3-Lane Combat Action Bar -->
+            <div id="combat-btn-group" class="hidden grid-cols-2 gap-2 pointer-events-auto">
+                <!-- Unified Attack Button with Flashing Heavy Ready State -->
+                <button id="pad-action-attack" class="py-3 bg-rose-600 active:bg-rose-500 hover:bg-rose-500 text-white rounded-xl font-black text-xs border border-rose-400 flex flex-col items-center justify-center shadow select-none transition-all duration-100">
+                    <span id="atk-btn-label">ATTACK [Z]</span>
+                    <span id="atk-btn-sub" class="text-[8px] text-rose-200 font-extrabold">TAP: Light | HOLD 2.5s: Heavy</span>
                 </button>
-                <button id="pad-action-parry" class="py-2.5 bg-amber-500 active:bg-amber-400 hover:bg-amber-400 text-zinc-950 rounded-xl font-black text-xs border border-amber-300 flex flex-col items-center justify-center shadow">
-                    <span>PARRY</span>
-                    <span class="text-[8px] text-amber-900 font-extrabold">[SPACE]</span>
+                
+                <!-- Precision Parry Button -->
+                <button id="pad-action-parry" class="py-3 bg-amber-500 active:bg-amber-400 hover:bg-amber-400 text-zinc-950 rounded-xl font-black text-xs border border-amber-300 flex flex-col items-center justify-center shadow select-none">
+                    <span>PARRY [SPACE]</span>
+                    <span class="text-[8px] text-amber-900 font-extrabold">Requires 100% Stamina</span>
                 </button>
             </div>
         </div>
@@ -140,12 +206,12 @@
 
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
-        <span class="text-emerald-400 font-bold">Portrait Nav:</span> Swipe ↑↓ (Depth) | Swipe ←→ (Shift Lane)<br>
-        <span class="text-zinc-300 font-bold">Keyboard:</span> WASD / Arrow Keys | Z (Slash) | X (Heavy) | Space (Parry)
+        <span class="text-emerald-400 font-bold">3-Lane Nav:</span> Swipe ↑↓ (Move Depth) | Swipe ←→ (Shift Lane)<br>
+        <span class="text-violet-400 font-bold">Combat:</span> Z (Tap: Light / Hold 2.5s: Auto-Heavy) | Space (Precision Parry at 100% Stamina)
     </div>
 
     <script>
-        // --- CANVAS ENGINE SETUP (PORTRAIT RESOLUTION: 360 x 640) ---
+        // --- CANVAS ENGINE SETUP (360 x 640 PORTRAIT) ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -154,16 +220,24 @@
         canvas.width = W;
         canvas.height = H;
 
-        // --- GAME ENGINE STATES ---
-        let mode = 'EXPLORE_DAY'; // EXPLORE_DAY, DIALOGUE, TRANSITION, EXPLORE_NIGHT, COMBAT, RESULTS
+        // --- ENGINE STATES ---
+        let mode = 'EXPLORE_DAY'; // EXPLORE_DAY, CLASS_SELECT, DIALOGUE, LUNCH_PROMPT, DAD_WORKSHOP, TRANSITION, COMBAT, RESULTS
+        let dayOfWeek = 'MON';
+        let hour = 9;
+        let minute = 0;
+        let period = 1;
+
         let isCursed = false;
         let socialPoints = 0;
         let damageBuff = 0;
+        let cluesGathered = [];
+        let equippedSubweapon = 'TALISMAN';
 
-        // --- 3-LANE POSITIONING & MOTION SMOOTHING ---
+        // --- 3-LANE GRID DATA ---
         let currentLane = 1; // 0: Left, 1: Center, 2: Right
-        let depthZ = 0;       // Target depth step (0 to 8)
-        
+        let depthZ = 0;       // Depth step (0 to 8)
+        let hallName = "Main Hallway";
+
         let displayLane = 1;
         let displayDepthZ = 0;
         let stepBobTime = 0;
@@ -177,25 +251,36 @@
             maxHp: 100,
             stamina: 100,
             maxStamina: 100,
-            atb: 100,
             isParrying: false,
-            parryWindow: 0
+            parryWindow: 0,
+            attackHoldTimer: 0,
+            isHoldingAttack: false,
+            isBlinded: false,
+            blindTimer: 0
         };
 
-        // Cryptid Boss Data
+        // Cryptid Boss Data (3-Lane Combat AI + Stun State)
         let cryptid = {
-            lane: 1,           // Active target lane (0, 1, or 2)
-            displayLane: 1,    // Smoothly interpolated lane position
+            lane: 1,           // 0, 1, or 2
+            displayLane: 1,
             depthZ: 4,
             hp: 150,
             maxHp: 150,
             attackTimer: 0,
-            moveTimer: 0,      // Timer controlling cryptid lane shifts
+            moveTimer: 0,
             telegraphedLanes: [],
-            attackSpeed: 130
+            attackSpeed: 130,
+            showParryIndicator: false,
+            isStunned: false,   // Stun Status
+            stunTimer: 0        // Stun duration counter (frames)
         };
 
-        let anyaMet = false;
+        let npcs = {
+            anya: { name: "Anya", lane: 2, depth: 3, present: true, avatar: "A", color: "#ec4899" },
+            beatrix: { name: "Beatrix (Occult)", lane: 0, depth: 5, present: true, avatar: "B", color: "#a855f7" },
+            mina: { name: "Mina (Track)", lane: 1, depth: 7, present: true, avatar: "M", color: "#38bdf8" }
+        };
+
         let floatingTexts = [];
         let screenShake = 0;
         let flashAlpha = 0;
@@ -204,11 +289,132 @@
             floatingTexts.push({ str, x, y, color, alpha: 1.0, life: 35 });
         }
 
-        // --- SWIPE GESTURE DETECTION SYSTEM ---
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchEndX = 0;
-        let touchEndY = 0;
+        // --- TIME ADVANCEMENT LOGIC ---
+        function advanceTime(minutesToAdd) {
+            minute += minutesToAdd;
+            while (minute >= 60) {
+                minute -= 60;
+                hour++;
+            }
+
+            updateClockDisplay();
+
+            if (hour >= 12 && period < 3) {
+                period = 3;
+                triggerLunchModal();
+            } else if (hour >= 15 && period < 5) {
+                period = 5;
+                triggerDadWorkshopModal();
+            }
+        }
+
+        function updateClockDisplay() {
+            const formattedMin = minute < 10 ? `0${minute}` : minute;
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+            const formattedHour = displayHour < 10 ? `0${displayHour}` : displayHour;
+
+            document.getElementById('clock-display').textContent = `${dayOfWeek} ${formattedHour}:${formattedMin} ${ampm}`;
+            
+            let phaseText = "P1 (9-11 AM)";
+            if (period === 1) phaseText = `${hallName} (P1)`;
+            else if (period === 2) phaseText = `${hallName} (P2)`;
+            else if (period === 3) phaseText = `${hallName} (Lunch)`;
+            else if (period === 4) phaseText = `${hallName} (P3)`;
+            else if (period === 5) phaseText = `After School (3 PM)`;
+            document.getElementById('phase-display').textContent = phaseText;
+        }
+
+        document.getElementById('time-skip-btn').onclick = () => {
+            if (mode === 'EXPLORE_DAY') {
+                advanceTime(30);
+                addFloatingText(`TIME SKIPPED (+30m)`, W / 2, H / 2 - 20, '#c084fc');
+            }
+        };
+
+        // --- CLASSROOM SELECTION ---
+        function openClassroomSelection() {
+            mode = 'CLASS_SELECT';
+            const modal = document.getElementById('class-modal');
+            const title = document.getElementById('class-title');
+            const options = document.getElementById('class-options');
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            title.textContent = period === 1 ? "PERIOD 1: SELECT CLASSROOM (9:00 AM)" : period === 2 ? "PERIOD 2: SELECT CLASSROOM (11:00 AM)" : "PERIOD 3: SELECT CLASSROOM (01:00 PM)";
+
+            options.innerHTML = `
+                <button onclick="attendClass('CHEMISTRY')" class="p-3 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500 rounded-xl text-left transition">
+                    <div class="font-black text-emerald-300 text-xs">A) ADVANCED CHEMISTRY LAB</div>
+                    <div class="text-[10px] text-zinc-300">Earn crafting materials & sub-weapon charms (+2 Hours)</div>
+                </button>
+                <button onclick="attendClass('HISTORY')" class="p-3 bg-violet-950/80 hover:bg-violet-900 border border-violet-500 rounded-xl text-left transition">
+                    <div class="font-black text-violet-300 text-xs">B) CATHOLIC HISTORY & MYTHOLOGY</div>
+                    <div class="text-[10px] text-zinc-300">Uncover NYC cryptid lore & weaknesses (+2 Hours)</div>
+                </button>
+            `;
+        }
+
+        window.attendClass = function(className) {
+            document.getElementById('class-modal').classList.add('hidden');
+            document.getElementById('class-modal').classList.remove('flex');
+
+            if (className === 'CHEMISTRY') {
+                damageBuff += 10;
+                addFloatingText(`+10 CHEM BUFF EARNED!`, W / 2, H / 2, '#34d399');
+            } else if (className === 'HISTORY') {
+                cluesGathered.push("CHAPEL LORE: Cryptids are weak to Parries in Center Lane");
+                addFloatingText(`CRYPTID LORE UNLOCKED!`, W / 2, H / 2, '#c084fc');
+            }
+
+            period++;
+            advanceTime(120);
+            resetNpcAvailability();
+            depthZ = 0;
+            if (period < 3 || period === 4) {
+                mode = 'EXPLORE_DAY';
+            }
+        };
+
+        function resetNpcAvailability() {
+            npcs.anya.present = true;
+            npcs.beatrix.present = true;
+            npcs.mina.present = true;
+        }
+
+        function triggerLunchModal() {
+            mode = 'LUNCH_PROMPT';
+            resetNpcAvailability();
+            document.getElementById('lunch-modal').classList.remove('hidden');
+            document.getElementById('lunch-modal').classList.add('flex');
+        }
+
+        document.getElementById('start-lunch-btn').onclick = () => {
+            document.getElementById('lunch-modal').classList.add('hidden');
+            document.getElementById('lunch-modal').classList.remove('flex');
+            mode = 'EXPLORE_DAY';
+        };
+
+        function triggerDadWorkshopModal() {
+            mode = 'DAD_WORKSHOP';
+            document.getElementById('dad-modal').classList.remove('hidden');
+            document.getElementById('dad-modal').classList.add('flex');
+
+            document.getElementById('clues-count-text').textContent = `${cluesGathered.length} Rumors / Clues`;
+            document.getElementById('curse-summary-text').textContent = isCursed ? "CURSED (-20 Max HP)" : "CLEAN";
+            document.getElementById('curse-summary-text').className = isCursed ? "text-rose-400 font-bold" : "text-emerald-400 font-bold";
+        }
+
+        document.getElementById('start-hunt-btn').onclick = () => {
+            equippedSubweapon = document.getElementById('subweapon-select').value;
+            document.getElementById('dad-modal').classList.add('hidden');
+            document.getElementById('dad-modal').classList.remove('flex');
+            startNightTransition();
+        };
+
+        // --- SWIPE GESTURE DETECTION ---
+        let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
         const SWIPE_THRESHOLD = 20;
 
         const gameApp = document.getElementById('game-app');
@@ -252,11 +458,8 @@
                 if (deltaX > SWIPE_THRESHOLD) shiftLane(1);
                 else if (deltaX < -SWIPE_THRESHOLD) shiftLane(-1);
             } else {
-                if (deltaY < -SWIPE_THRESHOLD) {
-                    if (mode.includes('EXPLORE')) moveDepth(1);
-                } else if (deltaY > SWIPE_THRESHOLD) {
-                    if (mode.includes('EXPLORE')) moveDepth(-1);
-                }
+                if (deltaY < -SWIPE_THRESHOLD) moveDepth(1);
+                else if (deltaY > SWIPE_THRESHOLD) moveDepth(-1);
             }
         }
 
@@ -274,22 +477,132 @@
             } else if (mode === 'COMBAT') {
                 if (e.code === 'KeyA' || e.code === 'ArrowLeft') shiftLane(-1);
                 if (e.code === 'KeyD' || e.code === 'ArrowRight') shiftLane(1);
-                if (e.code === 'KeyZ') executeLightSlash();
-                if (e.code === 'KeyX') executeHeavyThrust();
-                if (e.code === 'Space' || e.code === 'KeyC') executeParry();
+                if (e.code === 'KeyZ') startAttackCharge();
+                if (e.code === 'Space' || e.code === 'KeyC') executePrecisionParry();
             }
         });
 
         window.addEventListener('keyup', (e) => {
             keys[e.code] = false;
+            if (mode === 'COMBAT' && e.code === 'KeyZ') releaseAttack();
         });
 
-        document.getElementById('pad-action-slash').onclick = () => executeLightSlash();
-        document.getElementById('pad-action-heavy').onclick = () => executeHeavyThrust();
-        document.getElementById('pad-action-parry').onclick = () => executeParry();
+        // Touch Attack Button Listeners
+        const atkBtn = document.getElementById('pad-action-attack');
+        atkBtn.addEventListener('mousedown', startAttackCharge);
+        atkBtn.addEventListener('mouseup', releaseAttack);
+        atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startAttackCharge(); });
+        atkBtn.addEventListener('touchend', (e) => { e.preventDefault(); releaseAttack(); });
+
+        document.getElementById('pad-action-parry').onclick = () => executePrecisionParry();
+        document.getElementById('turn-left-btn').onclick = () => turnCorridor(-1);
+        document.getElementById('turn-right-btn').onclick = () => turnCorridor(1);
+
+        // --- COMBAT ATTACK CHARGE & AUTO-FIRE HEAVY SYSTEM ---
+        function startAttackCharge() {
+            if (mode !== 'COMBAT') return;
+            player.isHoldingAttack = true;
+            player.attackHoldTimer = 0;
+        }
+
+        function executeHeavyThrust() {
+            player.isHoldingAttack = false;
+            player.attackHoldTimer = 0;
+
+            if (player.stamina < 30) {
+                addFloatingText(`NO STAMINA FOR HEAVY!`, W / 2, H / 2 - 30, '#ef4444');
+                return;
+            }
+            player.stamina -= 30;
+
+            if (currentLane === cryptid.lane) {
+                const subBonus = equippedSubweapon === 'HOLY_WATER' ? 25 : 0;
+                const dmg = 55 + damageBuff + subBonus;
+                cryptid.hp = Math.max(0, cryptid.hp - dmg);
+                screenShake = 16;
+                stepBobTime = 1.2;
+                addFloatingText(`DIRECT HEAVY CRIT! -${dmg}`, W / 2, H / 2 - 50, '#fbbf24');
+            } else {
+                addFloatingText(`HEAVY MISSED! (WRONG LANE)`, W / 2, H / 2 - 50, '#a1a1aa');
+            }
+
+            checkCombatEnd();
+        }
+
+        function releaseAttack() {
+            if (mode !== 'COMBAT' || !player.isHoldingAttack) return;
+            
+            const holdSeconds = player.attackHoldTimer / 60;
+
+            if (holdSeconds >= 2.5) {
+                executeHeavyThrust();
+            } else {
+                // LIGHT SLASH ATTACK (QUICK TAP RELEASE BEFORE 2.5s)
+                player.isHoldingAttack = false;
+                player.attackHoldTimer = 0;
+
+                if (player.stamina < 15) {
+                    addFloatingText(`NO STAMINA!`, W / 2, H / 2 - 30, '#ef4444');
+                    return;
+                }
+                player.stamina -= 15;
+
+                const laneDiff = Math.abs(currentLane - cryptid.lane);
+                if (laneDiff <= 1) {
+                    const subBonus = equippedSubweapon === 'SILVER_BLADE' ? 15 : 0;
+                    const dmg = 18 + damageBuff + subBonus;
+                    cryptid.hp = Math.max(0, cryptid.hp - dmg);
+                    screenShake = 6;
+                    stepBobTime = 0.8;
+                    addFloatingText(`LIGHT SLASH! -${dmg}`, W / 2, H / 2 - 30, '#f43f5e');
+                } else {
+                    addFloatingText(`MISSED! (OUT OF RANGE)`, W / 2, H / 2 - 30, '#a1a1aa');
+                }
+            }
+
+            checkCombatEnd();
+        }
+
+        function executePrecisionParry() {
+            if (mode !== 'COMBAT') return;
+
+            // PARRY REQUIRES 100% STAMINA!
+            if (player.stamina < 100) {
+                addFloatingText(`NEED 100% STAMINA TO PARRY!`, W / 2, H - 90, '#ef4444');
+                return;
+            }
+
+            // CHECK TIMELY PARRY DURING RED CIRCLE CUE
+            if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(currentLane)) {
+                player.isParrying = true;
+                player.parryWindow = 10;
+                const parryMult = currentLane === 1 ? 2.0 : 1.0;
+                const counterDmg = 25 * parryMult;
+                cryptid.hp = Math.max(0, cryptid.hp - counterDmg);
+                screenShake = 12;
+
+                // STUN ENEMY FOR 3 SECONDS (180 FRAMES) ON SUCCESSFUL PARRY!
+                cryptid.isStunned = true;
+                cryptid.stunTimer = 180; // 3 seconds @ 60 FPS
+                cryptid.attackTimer = 0;
+                cryptid.telegraphedLanes = [];
+                cryptid.showParryIndicator = false;
+
+                addFloatingText(`★ PERFECT PARRY! ENEMY STUNNED! -${counterDmg}`, W / 2, H - 110, '#fef08a');
+            } else {
+                // MISTIMED PARRY PENALTY: DRAIN STAMINA TO 0!
+                player.stamina = 0;
+                addFloatingText(`MISSED PARRY! STAMINA DRAINED!`, W / 2, H - 90, '#ef4444');
+            }
+        }
 
         // --- NAVIGATION LOGIC ---
         function shiftLane(dir) {
+            if (mode === 'COMBAT' && player.isHoldingAttack) {
+                addFloatingText(`LOCKED IN HEAVY STANCE!`, W / 2, H - 110, '#f59e0b');
+                return;
+            }
+
             const prevLane = currentLane;
             currentLane = Math.max(0, Math.min(2, currentLane + dir));
             if (prevLane !== currentLane) {
@@ -302,6 +615,11 @@
         }
 
         function moveDepth(dz) {
+            if (mode === 'COMBAT' && player.isHoldingAttack) {
+                addFloatingText(`LOCKED IN HEAVY STANCE!`, W / 2, H - 110, '#f59e0b');
+                return;
+            }
+
             const prevZ = depthZ;
             depthZ = Math.max(0, Math.min(8, depthZ + dz));
             
@@ -309,62 +627,130 @@
                 stepBobTime = 1.0;
                 greenBorderPulse = 1.0;
 
-                if (dz > 0) addFloatingText(`FORWARD (${depthZ}/8)`, W / 2, H - 140, '#4ade80');
-                else addFloatingText(`BACK (${depthZ}/8)`, W / 2, H - 140, '#38bdf8');
+                if (mode === 'EXPLORE_DAY') {
+                    advanceTime(2);
+                }
+
+                if (dz > 0) addFloatingText(`FORWARD (+2m)`, W / 2, H - 140, '#4ade80');
+                else addFloatingText(`BACK (+2m)`, W / 2, H - 140, '#38bdf8');
+            }
+
+            if (depthZ === 4) {
+                document.getElementById('intersection-ui').classList.remove('hidden');
+                document.getElementById('intersection-ui').classList.add('flex');
+            } else {
+                document.getElementById('intersection-ui').classList.add('hidden');
+                document.getElementById('intersection-ui').classList.remove('flex');
             }
 
             if (mode === 'EXPLORE_DAY') {
-                if (!anyaMet && currentLane === 2 && depthZ >= 3) triggerAnyaDialogue();
-                else if (depthZ >= 6) startNightTransition();
+                if (npcs.anya.present && currentLane === npcs.anya.lane && depthZ >= npcs.anya.depth) {
+                    triggerNPCDialogue('ANYA');
+                } else if (npcs.beatrix.present && currentLane === npcs.beatrix.lane && depthZ >= npcs.beatrix.depth) {
+                    triggerNPCDialogue('BEATRIX');
+                } else if (npcs.mina.present && currentLane === npcs.mina.lane && depthZ >= npcs.mina.depth) {
+                    triggerNPCDialogue('MINA');
+                } else if (depthZ >= 8 && (period < 3 || period === 4)) {
+                    openClassroomSelection();
+                }
             } else if (mode === 'EXPLORE_NIGHT') {
                 if (depthZ >= 4) startCombatMode();
             }
         }
 
-        // --- DIALOGUE & CURSE ---
-        function triggerAnyaDialogue() {
+        function turnCorridor(dir) {
+            depthZ = 0;
+            hallName = dir < 0 ? "West Wing Corridor" : "East Wing Corridor";
+            updateClockDisplay();
+            document.getElementById('intersection-ui').classList.add('hidden');
+            document.getElementById('intersection-ui').classList.remove('flex');
+            addFloatingText(`TURNING INTO ${hallName.toUpperCase()}...`, W / 2, H / 2, '#c084fc');
+        }
+
+        // --- NPC DIALOGUE SYSTEM ---
+        function triggerNPCDialogue(npcKey) {
             mode = 'DIALOGUE';
+            advanceTime(20);
+
+            npcs.anya.present = false;
+            npcs.beatrix.present = false;
+            npcs.mina.present = false;
+
             document.getElementById('dialogue-modal').classList.remove('hidden');
             document.getElementById('dialogue-modal').classList.add('flex');
 
+            const avatar = document.getElementById('npc-avatar');
+            const nameEl = document.getElementById('dialogue-npc-name');
+            const bodyEl = document.getElementById('dialogue-body-text');
             const choices = document.getElementById('dialogue-choices');
-            choices.innerHTML = `
-                <button onclick="resolveDialogue('LIE')" class="p-2.5 bg-rose-950/90 hover:bg-rose-900 border border-rose-500 rounded-xl text-left transition">
-                    <div class="font-black text-rose-300 text-xs">A) TELL THE LIE</div>
-                    <div class="text-[10px] text-zinc-300">"You don't need to study at all, Anya!"</div>
-                    <div class="text-[8px] text-rose-400 mt-0.5 font-bold">★ +50 Social | ⚠ CURSE: -20 Max HP & Faster Enemy Attacks</div>
-                </button>
-                <button onclick="resolveDialogue('TRUTH')" class="p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl text-left transition">
-                    <div class="font-black text-zinc-300 text-xs">B) TELL THE TRUTH</div>
-                    <div class="text-[10px] text-zinc-300">"Honestly? You fail every lab assignment."</div>
-                    <div class="text-[8px] text-emerald-400 mt-0.5 font-bold">✓ Safe Health | ✗ -20 Social</div>
-                </button>
-            `;
+
+            if (npcKey === 'ANYA') {
+                avatar.textContent = "A"; avatar.style.backgroundColor = npcs.anya.color;
+                nameEl.textContent = "Anya (Popular Group)";
+                bodyEl.textContent = `"Xio! Be real with me... do you actually think I need to study for Chemistry, or am I naturally gifted enough to pass without trying?"`;
+                choices.innerHTML = `
+                    <button onclick="resolveDialogue('LIE')" class="p-2.5 bg-rose-950/90 hover:bg-rose-900 border border-rose-500 rounded-xl text-left transition">
+                        <div class="font-black text-rose-300 text-xs">A) TELL THE LIE (+20m)</div>
+                        <div class="text-[10px] text-zinc-300">"You don't need to study at all, Anya!"</div>
+                        <div class="text-[8px] text-rose-400 mt-0.5 font-bold">★ +50 Social | ⚠ CURSE: -20 Max HP & Faster Enemy Attacks</div>
+                    </button>
+                    <button onclick="resolveDialogue('TRUTH')" class="p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl text-left transition">
+                        <div class="font-black text-zinc-300 text-xs">B) TELL THE TRUTH (+20m)</div>
+                        <div class="text-[10px] text-zinc-300">"Honestly? You fail every lab assignment."</div>
+                        <div class="text-[8px] text-emerald-400 mt-0.5 font-bold">✓ Safe Health | ✗ -20 Social</div>
+                    </button>
+                `;
+            } else if (npcKey === 'BEATRIX') {
+                avatar.textContent = "B"; avatar.style.backgroundColor = npcs.beatrix.color;
+                nameEl.textContent = "Beatrix (Occult Club President)";
+                bodyEl.textContent = `"Did you hear? The anomaly in the chapel has a glowing core. If you time your Parry in the Center Lane, it counters for 2x damage!"`;
+                cluesGathered.push("OCCULT RUMOR: Center Lane Parries deal 2x Counter Damage");
+                choices.innerHTML = `<button onclick="closeDialogue()" class="p-2.5 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-xl text-xs">THANK BEATRIX (+20m - OTHERS DEPARTED)</button>`;
+            } else if (npcKey === 'MINA') {
+                avatar.textContent = "M"; avatar.style.backgroundColor = npcs.mina.color;
+                nameEl.textContent = "Mina (Track Star)";
+                bodyEl.textContent = `"I dropped my agility charm near the East Corridor lockers. I'll lend it to you—your Heavy Thrusts now deal bonus speed damage!"`;
+                damageBuff += 10;
+                cluesGathered.push("MINA'S CHARM: +10 Speed & Heavy Damage");
+                choices.innerHTML = `<button onclick="closeDialogue()" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-xl text-xs">TAKE MINA'S CHARM (+20m - OTHERS DEPARTED)</button>`;
+            }
         }
 
         window.resolveDialogue = function(type) {
             document.getElementById('dialogue-modal').classList.add('hidden');
             document.getElementById('dialogue-modal').classList.remove('flex');
-            anyaMet = true;
 
             if (type === 'LIE') {
                 isCursed = true;
                 socialPoints += 50;
-                damageBuff = 15;
+                damageBuff += 15;
                 cryptid.attackSpeed = 90;
                 document.getElementById('curse-tag').classList.remove('hidden');
             } else {
                 isCursed = false;
                 socialPoints -= 20;
-                damageBuff = 0;
                 cryptid.attackSpeed = 130;
             }
             mode = 'EXPLORE_DAY';
+            addFloatingText(`OTHER STUDENTS LEFT FOR CLASS`, W / 2, H / 2, '#f59e0b');
+        };
+
+        window.closeDialogue = function() {
+            document.getElementById('dialogue-modal').classList.add('hidden');
+            document.getElementById('dialogue-modal').classList.remove('flex');
+            mode = 'EXPLORE_DAY';
+            addFloatingText(`OTHER STUDENTS LEFT FOR CLASS`, W / 2, H / 2, '#f59e0b');
         };
 
         // --- SCENE TRANSITION ---
         function startNightTransition() {
             mode = 'TRANSITION';
+
+            document.getElementById('daytime-btn-group').classList.add('hidden');
+            document.getElementById('daytime-btn-group').classList.remove('flex');
+            document.getElementById('combat-btn-group').classList.remove('hidden');
+            document.getElementById('combat-btn-group').classList.add('grid');
+
             let flashes = 0;
             const timer = setInterval(() => {
                 flashes++;
@@ -375,7 +761,7 @@
                     depthZ = 0;
                     currentLane = 1;
                     mode = 'EXPLORE_NIGHT';
-                    document.getElementById('phase-display').textContent = "Night Hunt 3-Lane";
+                    document.getElementById('phase-display').textContent = "Midnight 3-Lane Extermination";
                     document.getElementById('clock-display').textContent = "01:00 AM";
                 }
             }, 80);
@@ -387,64 +773,22 @@
             player.maxHp = isCursed ? 80 : 100;
             player.hp = player.maxHp;
             player.stamina = 100;
-            player.atb = 100;
+
+            cryptid.lane = 1;
+            cryptid.displayLane = 1;
             cryptid.hp = 150;
             cryptid.attackTimer = 0;
             cryptid.moveTimer = 0;
-            cryptid.lane = 1;
-            cryptid.displayLane = 1;
             cryptid.telegraphedLanes = [];
-            currentLane = 1;
+            cryptid.isStunned = false;
+            cryptid.stunTimer = 0;
 
             document.getElementById('turn-badge').classList.remove('hidden');
             updateHUD();
         }
 
-        function executeLightSlash() {
-            if (mode !== 'COMBAT' || player.atb < 100) return;
-            player.atb = 0;
-            
-            const laneDiff = Math.abs(currentLane - cryptid.lane);
-            if (laneDiff <= 1) {
-                const dmg = 18 + damageBuff;
-                cryptid.hp = Math.max(0, cryptid.hp - dmg);
-                screenShake = 6;
-                stepBobTime = 0.8;
-                addFloatingText(`SLASH! -${dmg}`, W / 2, H / 2 - 30, '#f43f5e');
-            } else {
-                addFloatingText(`MISSED! (OUT OF RANGE)`, W / 2, H / 2 - 30, '#a1a1aa');
-            }
-            checkCombatEnd();
-        }
-
-        function executeHeavyThrust() {
-            if (mode !== 'COMBAT' || player.atb < 100 || player.stamina < 30) return;
-            player.atb = 0;
-            player.stamina -= 30;
-
-            if (currentLane === cryptid.lane) {
-                const dmg = 50 + damageBuff;
-                cryptid.hp = Math.max(0, cryptid.hp - dmg);
-                screenShake = 14;
-                stepBobTime = 1.2;
-                addFloatingText(`DIRECT HEAVY CRIT! -${dmg}`, W / 2, H / 2 - 50, '#fbbf24');
-            } else {
-                addFloatingText(`HEAVY MISSED! (WRONG LANE)`, W / 2, H / 2 - 50, '#a1a1aa');
-            }
-            checkCombatEnd();
-        }
-
-        function executeParry() {
-            if (mode !== 'COMBAT') return;
-            player.isParrying = true;
-            player.parryWindow = 18;
-            addFloatingText(`DEFLECT READY!`, W / 2, H - 90, '#38bdf8');
-        }
-
         function checkCombatEnd() {
-            if (cryptid.hp <= 0 || player.hp <= 0) {
-                endCombat();
-            }
+            if (cryptid.hp <= 0 || player.hp <= 0) endCombat();
         }
 
         function endCombat() {
@@ -458,9 +802,9 @@
             document.getElementById('res-title').className = win ? "text-2xl font-black text-emerald-400 title-font mb-1" : "text-2xl font-black text-rose-500 title-font mb-1";
 
             document.getElementById('res-stats').innerHTML = `
-                <div class="flex justify-between"><span>Curse Active:</span> <strong class="${isCursed ? 'text-rose-400' : 'text-emerald-400'}">${isCursed ? 'YES (-20 Max HP)' : 'NO'}</strong></div>
-                <div class="flex justify-between"><span>Anya Trust Level:</span> <strong>${socialPoints} pts</strong></div>
-                <div class="flex justify-between"><span>Damage Buff:</span> <strong>+${damageBuff} DMG</strong></div>
+                <div class="flex justify-between"><span>Curse Status:</span> <strong class="${isCursed ? 'text-rose-400' : 'text-emerald-400'}">${isCursed ? 'YES (-20 Max HP)' : 'NO'}</strong></div>
+                <div class="flex justify-between"><span>Clues Gathered:</span> <strong>${cluesGathered.length} Rumors</strong></div>
+                <div class="flex justify-between"><span>Equipped Weapon:</span> <strong>${equippedSubweapon}</strong></div>
                 <div class="flex justify-between"><span>Final HP:</span> <strong>${Math.max(0, Math.ceil(player.hp))} HP</strong></div>
             `;
         }
@@ -485,57 +829,119 @@
 
             if (greenBorderPulse > 0) greenBorderPulse -= 0.03;
 
+            // Attack Charge Timer & FLASHING HEAVY READY BUTTON INDICATOR
             if (mode === 'COMBAT') {
-                if (player.atb < 100) player.atb = Math.min(100, player.atb + 0.9);
-                if (player.stamina < player.maxStamina) player.stamina = Math.min(player.maxStamina, player.stamina + 0.25);
+                const atkBtn = document.getElementById('pad-action-attack');
+                const atkLabel = document.getElementById('atk-btn-label');
+                const atkSub = document.getElementById('atk-btn-sub');
 
-                if (player.parryWindow > 0) {
-                    player.parryWindow--;
-                    if (player.parryWindow <= 0) player.isParrying = false;
-                }
+                if (player.isHoldingAttack) {
+                    player.attackHoldTimer++;
+                    const progressSeconds = (player.attackHoldTimer / 60).toFixed(1);
 
-                // CRYPTID 3-LANE MOVEMENT AI
-                cryptid.moveTimer++;
-                if (cryptid.moveTimer > 80 && cryptid.telegraphedLanes.length === 0) {
-                    cryptid.moveTimer = 0;
-                    if (Math.random() < 0.65) {
-                        if (cryptid.lane < currentLane) cryptid.lane++;
-                        else if (cryptid.lane > currentLane) cryptid.lane--;
-                    } else {
-                        const dir = Math.random() < 0.5 ? -1 : 1;
-                        cryptid.lane = Math.max(0, Math.min(2, cryptid.lane + dir));
-                    }
-                }
-
-                cryptid.attackTimer++;
-
-                if (cryptid.attackTimer > cryptid.attackSpeed - 40 && cryptid.telegraphedLanes.length === 0) {
-                    if (Math.random() < 0.5) {
-                        cryptid.telegraphedLanes = [cryptid.lane];
-                    } else {
-                        const adj = cryptid.lane === 0 ? 1 : cryptid.lane === 2 ? 1 : (Math.random() < 0.5 ? 0 : 2);
-                        cryptid.telegraphedLanes = [cryptid.lane, adj];
-                    }
-                }
-
-                if (cryptid.attackTimer >= cryptid.attackSpeed) {
-                    if (cryptid.telegraphedLanes.includes(currentLane)) {
-                        if (player.isParrying && player.parryWindow > 0) {
-                            addFloatingText(`PARRIED! COUNTER!`, W / 2, H - 120, '#38bdf8');
-                            cryptid.hp = Math.max(0, cryptid.hp - 20);
-                        } else {
-                            const dmg = 22;
-                            player.hp = Math.max(0, player.hp - dmg);
-                            screenShake = 12;
-                            addFloatingText(`-[${dmg} HP] LANE STRIKE!`, W / 2, H - 100, '#ef4444');
+                    if (player.attackHoldTimer >= 150) { // 2.5 seconds @ 60 FPS
+                        if (atkBtn) {
+                            atkBtn.className = "py-3 bg-white text-zinc-950 rounded-xl font-black text-xs border-2 border-amber-300 flex flex-col items-center justify-center shadow-lg shadow-white/80 select-none animate-pulse transition-all duration-100";
                         }
+                        if (atkLabel) atkLabel.textContent = `★ EXECUTING HEAVY!`;
+                        if (atkSub) atkSub.textContent = `AUTOMATIC HEAVY THRUST!`;
+
+                        executeHeavyThrust();
                     } else {
-                        addFloatingText(`LANE DODGED!`, W / 2, H - 100, '#34d399');
+                        if (atkBtn) {
+                            atkBtn.className = "py-3 bg-rose-700 text-white rounded-xl font-black text-xs border border-rose-400 flex flex-col items-center justify-center shadow select-none transition-all duration-100";
+                        }
+                        if (atkLabel) atkLabel.textContent = `CHARGING: ${progressSeconds}s / 2.5s`;
+                        if (atkSub) atkSub.textContent = `LOCKED IN HEAVY CHARGE...`;
+                    }
+                } else {
+                    if (atkBtn) {
+                        atkBtn.className = "py-3 bg-rose-600 active:bg-rose-500 hover:bg-rose-500 text-white rounded-xl font-black text-xs border border-rose-400 flex flex-col items-center justify-center shadow select-none transition-all duration-100";
+                    }
+                    if (atkLabel) atkLabel.textContent = `ATTACK [Z]`;
+                    if (atkSub) atkSub.textContent = `TAP: Light | HOLD 2.5s: Heavy`;
+                }
+
+                // Passive Stamina Regeneration
+                if (player.stamina < player.maxStamina) {
+                    player.stamina = Math.min(player.maxStamina, player.stamina + 0.35);
+                }
+
+                // Blindness Penalty
+                if (player.isBlinded) {
+                    player.blindTimer--;
+                    if (player.blindTimer <= 0) {
+                        player.isBlinded = false;
+                        document.getElementById('blind-overlay').classList.add('hidden');
+                        document.getElementById('blind-overlay').classList.remove('flex');
+                    }
+                }
+
+                // ENEMY STUN TIMER DECAY
+                if (cryptid.isStunned) {
+                    cryptid.stunTimer--;
+                    if (cryptid.stunTimer <= 0) {
+                        cryptid.isStunned = false;
+                        addFloatingText(`ENEMY RECOVERED FROM STUN!`, W / 2, H / 2 - 30, '#ef4444');
+                    }
+                } else {
+                    // Cryptid 3-Lane AI Movement (Only moves when NOT stunned)
+                    cryptid.moveTimer++;
+                    if (cryptid.moveTimer > 80 && cryptid.telegraphedLanes.length === 0) {
+                        cryptid.moveTimer = 0;
+                        if (Math.random() < 0.65) {
+                            if (cryptid.lane < currentLane) cryptid.lane++;
+                            else if (cryptid.lane > currentLane) cryptid.lane--;
+                        } else {
+                            const dir = Math.random() < 0.5 ? -1 : 1;
+                            cryptid.lane = Math.max(0, Math.min(2, cryptid.lane + dir));
+                        }
                     }
 
-                    cryptid.attackTimer = 0;
-                    cryptid.telegraphedLanes = [];
-                    checkCombatEnd();
+                    cryptid.attackTimer++;
+
+                    // Telegraph Phase
+                    if (cryptid.attackTimer > cryptid.attackSpeed - 40 && cryptid.telegraphedLanes.length === 0) {
+                        if (Math.random() < 0.5) cryptid.telegraphedLanes = [cryptid.lane];
+                        else {
+                            const adj = cryptid.lane === 0 ? 1 : cryptid.lane === 2 ? 1 : (Math.random() < 0.5 ? 0 : 2);
+                            cryptid.telegraphedLanes = [cryptid.lane, adj];
+                        }
+                    }
+
+                    cryptid.showParryIndicator = cryptid.attackTimer > cryptid.attackSpeed - 18 && cryptid.telegraphedLanes.length > 0;
+
+                    // Strike Phase!
+                    if (cryptid.attackTimer >= cryptid.attackSpeed) {
+                        if (cryptid.telegraphedLanes.includes(currentLane)) {
+                            if (player.isParrying && player.parryWindow > 0) {
+                                // Parry handled in precision parry function
+                            } else {
+                                const dmg = 22;
+                                player.hp = Math.max(0, player.hp - dmg);
+                                screenShake = 14;
+
+                                if (player.isHoldingAttack) {
+                                    player.isHoldingAttack = false;
+                                    player.attackHoldTimer = 0;
+                                    player.isBlinded = true;
+                                    player.blindTimer = 120;
+                                    document.getElementById('blind-overlay').classList.remove('hidden');
+                                    document.getElementById('blind-overlay').classList.add('flex');
+                                    addFloatingText(`INTERRUPTED! BLINDED FOR 2s!`, W / 2, H - 100, '#ef4444');
+                                } else {
+                                    addFloatingText(`-[${dmg} HP] LANE STRIKE!`, W / 2, H - 100, '#ef4444');
+                                }
+                            }
+                        } else {
+                            addFloatingText(`LANE DODGED!`, W / 2, H - 100, '#34d399');
+                        }
+
+                        cryptid.attackTimer = 0;
+                        cryptid.telegraphedLanes = [];
+                        cryptid.showParryIndicator = false;
+                        checkCombatEnd();
+                    }
                 }
             }
 
@@ -546,13 +952,13 @@
             document.getElementById('hp-text').textContent = `${Math.max(0, Math.ceil(player.hp))}/${player.maxHp}`;
             document.getElementById('hp-bar').style.width = `${(Math.max(0, player.hp) / player.maxHp) * 100}%`;
 
-            document.getElementById('stamina-text').textContent = `${Math.floor(player.atb)}%`;
-            document.getElementById('stamina-bar').style.width = `${player.atb}%`;
+            document.getElementById('stamina-text').textContent = `${Math.floor(player.stamina)}%`;
+            document.getElementById('stamina-bar').style.width = `${player.stamina}%`;
 
             const badge = document.getElementById('turn-badge');
             if (badge) {
-                badge.textContent = player.atb >= 100 ? "READY" : "CHARGING...";
-                badge.className = player.atb >= 100 ? "px-2 py-0.5 bg-emerald-950/90 border border-emerald-500 rounded-full text-[8px] font-black text-emerald-300 uppercase tracking-wider animate-pulse" : "px-2 py-0.5 bg-black/80 border border-zinc-700 rounded-full text-[8px] font-black text-zinc-400 uppercase tracking-wider";
+                badge.textContent = player.stamina >= 100 ? "100% PARRY READY" : "CHARGING STAMINA...";
+                badge.className = player.stamina >= 100 ? "px-2 py-0.5 bg-emerald-950/90 border border-emerald-500 rounded-full text-[8px] font-black text-emerald-300 uppercase tracking-wider animate-pulse" : "px-2 py-0.5 bg-black/80 border border-zinc-700 rounded-full text-[8px] font-black text-zinc-400 uppercase tracking-wider";
             }
         }
 
@@ -565,7 +971,7 @@
                 ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
             }
 
-            if (mode.includes('EXPLORE') || mode === 'DIALOGUE') {
+            if (mode.includes('EXPLORE') || mode === 'DIALOGUE' || mode === 'CLASS_SELECT') {
                 renderDynamic3LaneExploration();
             } else if (mode === 'TRANSITION') {
                 renderTransitionGlitch();
@@ -573,7 +979,6 @@
                 render3LaneCombat();
             }
 
-            // Render Over-The-Shoulder Xiomara
             renderOverTheShoulderXio();
 
             if (flashAlpha > 0) {
@@ -581,7 +986,6 @@
                 ctx.fillRect(0, 0, W, H);
             }
 
-            // Floating Damage / Action Text
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
                 ctx.fillStyle = ft.color;
@@ -596,9 +1000,9 @@
             requestAnimationFrame(() => { update(); render(); });
         }
 
-        // 1. DYNAMIC 3-LANE EXPLORATION
+        // 1. DYNAMIC 3-LANE OVERWORLD CORRIDOR EXPLORATION
         function renderDynamic3LaneExploration() {
-            ctx.fillStyle = mode === 'EXPLORE_DAY' || mode === 'DIALOGUE' ? '#18181b' : '#050508';
+            ctx.fillStyle = mode === 'EXPLORE_DAY' || mode === 'DIALOGUE' || mode === 'CLASS_SELECT' ? '#18181b' : '#050508';
             ctx.fillRect(0, 0, W, H);
 
             const vpX = W * 0.50;
@@ -607,7 +1011,6 @@
             ctx.lineWidth = 1.5;
             ctx.strokeStyle = mode === 'EXPLORE_DAY' ? '#3f3f46' : '#3b0764';
 
-            // Draw Perspective Lane Dividing Lines
             for (let l = 0; l <= 3; l++) {
                 const lx = vpX + (l - 1.5) * 30;
                 const rx = W * 0.50 + (l - 1.5) * 110;
@@ -617,7 +1020,7 @@
                 ctx.stroke();
             }
 
-            // GLOWING TRANSPARENT WHITE ACTIVE LANE BEAM
+            // WHITE ACTIVE LANE BEAM
             const activeLaneLx1 = vpX + (displayLane - 1.5) * 30;
             const activeLaneLx2 = vpX + (displayLane - 0.5) * 30;
             const activeLaneRx1 = W * 0.50 + (displayLane - 1.5) * 110;
@@ -641,7 +1044,7 @@
             ctx.lineTo(activeLaneRx2, H);
             ctx.stroke();
 
-            // Sliding Floor Grid Lines
+            // Transverse Floor Grid Lines
             const numSlices = 12;
             for (let i = 0; i <= numSlices; i++) {
                 const zVal = (i + (displayDepthZ % 1)) / numSlices;
@@ -655,17 +1058,46 @@
                 ctx.stroke();
             }
 
-            // Corridor Frame & Picture Frame
+            // Corridor Outline & Doorway
             ctx.strokeStyle = mode === 'EXPLORE_DAY' ? '#52525b' : '#68d391';
             ctx.lineWidth = 2;
             const doorScale = 1 + (displayDepthZ / 8) * 0.3;
             ctx.strokeRect(vpX - 45 * doorScale, vpY - 55 * doorScale, 90 * doorScale, 110 * doorScale);
 
+            // Picture Frame
             const picZ = Math.max(0.1, 1 - (displayDepthZ / 8) * 0.8);
             const picX = 85 - (displayDepthZ * 8);
             const picY = 160 + (displayDepthZ * 6);
             ctx.strokeStyle = '#71717a';
             ctx.strokeRect(picX, picY, 30 * picZ, 40 * picZ);
+
+            // RENDER 3x3 CROSSING HALLWAY OPENINGS AT STEP 4
+            if (Math.abs(displayDepthZ - 4) < 1.5) {
+                const interY1 = vpY + (H - vpY) * Math.pow(0.4, 1.8);
+                const interY2 = vpY + (H - vpY) * Math.pow(0.6, 1.8);
+
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.18)';
+                ctx.strokeStyle = '#a855f7';
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                ctx.moveTo(0, interY1);
+                ctx.lineTo(vpX - 45, interY1 + 10);
+                ctx.lineTo(vpX - 45, interY2);
+                ctx.lineTo(0, interY2 + 20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(W, interY1);
+                ctx.lineTo(vpX + 45, interY1 + 10);
+                ctx.lineTo(vpX + 45, interY2);
+                ctx.lineTo(W, interY2 + 20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
 
             // GREEN BORDER / DEPTH POSITION INDICATOR
             const activeZNorm = Math.min(1, Math.max(0.05, (displayDepthZ + 1) / 9));
@@ -705,19 +1137,24 @@
             ctx.font = '900 10px Inter, sans-serif';
             ctx.fillText(`◄ STEP ${depthZ} / 8 ►`, (rx1 + rx2) / 2 - 32, greenY2 - 8);
 
-            if (!anyaMet && depthZ < 3) {
-                const anyaScale = 1 + (displayDepthZ / 3) * 0.6;
-                const anyaX = vpX + 25 * anyaScale;
-                const anyaY = vpY + 20 * anyaScale;
-                ctx.fillStyle = '#ec4899';
-                ctx.fillRect(anyaX, anyaY, 16 * anyaScale, 30 * anyaScale);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 8px sans-serif';
-                ctx.fillText("ANYA (LANE 2)", anyaX - 18, anyaY - 4);
+            // Render Classmates
+            for (let key in npcs) {
+                let npc = npcs[key];
+                if (npc.present && depthZ < npc.depth) {
+                    const npcScale = 1 + (displayDepthZ / 8) * 0.5;
+                    const npcX = vpX + (npc.lane - 1) * 25 * npcScale;
+                    const npcY = vpY + 20 * npcScale;
+
+                    ctx.fillStyle = npc.color;
+                    ctx.fillRect(npcX - 8, npcY, 16 * npcScale, 30 * npcScale);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 8px sans-serif';
+                    ctx.fillText(npc.name, npcX - 22, npcY - 4);
+                }
             }
         }
 
-        // 2. Render 3-Lane Combat (WITH HAZARD OVERLAY ON PLAYER'S ACTIVE LANE!)
+        // 2. RENDER 3-LANE COMBAT (WITH STUN VISUALS & RED PARRY CIRCLE INDICATOR)
         function render3LaneCombat() {
             ctx.fillStyle = '#030305';
             ctx.fillRect(0, 0, W, H);
@@ -725,7 +1162,6 @@
             const vpX = W * 0.50;
             const vpY = H * 0.35;
 
-            // Render 3 Distinct Battle Lanes
             for (let l = 0; l < 3; l++) {
                 const isTelegraphed = cryptid.telegraphedLanes.includes(l);
                 const isPlayerLane = currentLane === l;
@@ -736,23 +1172,19 @@
                 const rx2 = W * 0.50 + (l - 0.5) * 80;
 
                 if (isTelegraphed && isPlayerLane) {
-                    // --- DANGER IN YOUR LANE! FLASHING INTENSE RED OVERLAY ---
                     const pulseAlpha = 0.55 + Math.sin(Date.now() * 0.015) * 0.3;
                     ctx.fillStyle = `rgba(239, 68, 68, ${pulseAlpha})`;
                     ctx.strokeStyle = '#f87171';
                     ctx.lineWidth = 4;
                 } else if (isPlayerLane) {
-                    // Safe Player Lane (Clean White Beam)
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
                     ctx.strokeStyle = '#ffffff';
                     ctx.lineWidth = 2.5;
                 } else if (isTelegraphed) {
-                    // Telegraphed Attack Lane (Other lane)
                     ctx.fillStyle = 'rgba(244, 63, 94, 0.45)';
                     ctx.strokeStyle = '#f43f5e';
                     ctx.lineWidth = 2;
                 } else {
-                    // Neutral Unoccupied Lane
                     ctx.fillStyle = 'rgba(30, 27, 75, 0.4)';
                     ctx.strokeStyle = '#312e81';
                     ctx.lineWidth = 2;
@@ -766,8 +1198,28 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // Explicit Hazard Warning Badge if player is standing in telegraphed attack lane
-                if (isTelegraphed && isPlayerLane) {
+                // RED CIRCLE PARRY INDICATOR CUE IN ATTACK AREA
+                if (isTelegraphed && cryptid.showParryIndicator && isPlayerLane) {
+                    const cueX = (rx1 + rx2) / 2;
+                    const cueY = H - 85;
+
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(cueX, cueY, 22, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#fef08a';
+                    ctx.beginPath();
+                    ctx.arc(cueX, cueY, 8, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '900 8px Inter, sans-serif';
+                    ctx.fillText("PARRY NOW!", cueX - 25, cueY - 26);
+                } else if (isTelegraphed && isPlayerLane) {
                     ctx.fillStyle = '#fee2e2';
                     ctx.fillRect((rx1 + rx2) / 2 - 40, H - 75, 80, 16);
                     ctx.fillStyle = '#b91c1c';
@@ -780,33 +1232,49 @@
                 }
             }
 
-            // Cryptid Boss smoothly moving across the 3 Lanes
+            // CRYPTID BOSS IN 3-LANE VIEW (WITH STUN VISUAL EFFECTS)
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
             const cryptidY = vpY + 45;
 
-            ctx.fillStyle = '#09090b';
+            ctx.fillStyle = cryptid.isStunned ? '#fef08a' : '#09090b';
             ctx.beginPath();
             ctx.ellipse(cryptidX, cryptidY, 24, 55, 0, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = '#e11d48';
+            ctx.strokeStyle = cryptid.isStunned ? '#eab308' : '#e11d48';
             ctx.lineWidth = 3;
             ctx.stroke();
 
             // Eyes
-            ctx.fillStyle = '#fef08a';
+            ctx.fillStyle = cryptid.isStunned ? '#ef4444' : '#fef08a';
             ctx.fillRect(cryptidX - 7, cryptidY - 25, 5, 5);
             ctx.fillRect(cryptidX + 3, cryptidY - 25, 5, 5);
 
-            // Enemy Lane Indicator Badge
-            const enemyLaneText = cryptid.lane === 0 ? "ENEMY: LEFT" : cryptid.lane === 1 ? "ENEMY: CENTER" : "ENEMY: RIGHT";
-            ctx.fillStyle = '#f43f5e';
-            ctx.font = '900 8px Inter, sans-serif';
-            ctx.fillText(enemyLaneText, cryptidX - 25, cryptidY + 42);
+            // STUN VISUAL BADGE & SHOCKWAVES
+            if (cryptid.isStunned) {
+                const stunSec = (cryptid.stunTimer / 60).toFixed(1);
+                ctx.fillStyle = '#fef08a';
+                ctx.font = '900 10px Inter, sans-serif';
+                ctx.fillText(`★ STUNNED! (${stunSec}s) ★`, cryptidX - 45, cryptidY - 85);
+
+                // Rotating Dizzy Stars / Shockwaves above Cryptid
+                const starAngle = Date.now() * 0.01;
+                ctx.strokeStyle = '#fef08a';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(cryptidX + Math.cos(starAngle) * 20, cryptidY - 65 + Math.sin(starAngle) * 6, 4, 0, Math.PI * 2);
+                ctx.arc(cryptidX + Math.cos(starAngle + Math.PI) * 20, cryptidY - 65 + Math.sin(starAngle + Math.PI) * 6, 4, 0, Math.PI * 2);
+                ctx.stroke();
+            } else {
+                const enemyLaneText = cryptid.lane === 0 ? "ENEMY: LEFT" : cryptid.lane === 1 ? "ENEMY: CENTER" : "ENEMY: RIGHT";
+                ctx.fillStyle = '#f43f5e';
+                ctx.font = '900 8px Inter, sans-serif';
+                ctx.fillText(enemyLaneText, cryptidX - 25, cryptidY + 42);
+            }
 
             // Boss HP Bar
             ctx.fillStyle = '#18181b';
             ctx.fillRect(cryptidX - 28, cryptidY - 70, 56, 5);
-            ctx.fillStyle = '#e11d48';
+            ctx.fillStyle = cryptid.isStunned ? '#fef08a' : '#e11d48';
             ctx.fillRect(cryptidX - 28, cryptidY - 70, (cryptid.hp / cryptid.maxHp) * 56, 5);
         }
 
@@ -821,7 +1289,6 @@
             const baseX = 85;
             const baseY = H;
 
-            // Body Outline / Jacket ("MX" Vest)
             ctx.fillStyle = '#18181b';
             ctx.strokeStyle = '#f4f4f5';
             ctx.lineWidth = 2.5;
@@ -836,17 +1303,14 @@
             ctx.fill();
             ctx.stroke();
 
-            // "MX" Logo on Vest
             ctx.fillStyle = '#ffffff';
             ctx.font = '900 18px Inter, sans-serif';
             ctx.fillText("MX", baseX - 20, baseY - 120);
 
-            // Utility Belt Pouch
             ctx.fillStyle = '#27272a';
             ctx.strokeRect(baseX - 12, baseY - 98, 26, 20);
             ctx.fillRect(baseX - 12, baseY - 98, 26, 20);
 
-            // Ponytail Hair (Matches sketch)
             ctx.fillStyle = '#27272a';
             ctx.beginPath();
             ctx.arc(baseX - 18, baseY - 182, 22, 0, Math.PI * 2);
@@ -858,7 +1322,6 @@
             ctx.fill();
             ctx.stroke();
 
-            // Melee Weapon (Bokken / Club across hip)
             ctx.strokeStyle = '#e4e4e7';
             ctx.lineWidth = 6;
             ctx.beginPath();
@@ -866,7 +1329,6 @@
             ctx.lineTo(baseX + 60, baseY - 125);
             ctx.stroke();
 
-            // Parry Aura
             if (player.isParrying) {
                 ctx.strokeStyle = '#38bdf8';
                 ctx.lineWidth = 4;
