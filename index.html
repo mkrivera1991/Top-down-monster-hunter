@@ -110,25 +110,31 @@ class MainScene extends Phaser.Scene {
         g.generateTexture('giant', 96, 96);
         g.clear();
 
-        // Touch UI
+        // Joystick Bases & Thumbs
         g.fillStyle(0xffffff, 0.2);
         g.fillCircle(40, 40, 40);
         g.generateTexture('joy-base', 80, 80);
         g.clear();
 
-        g.fillStyle(0xffffff, 0.5);
+        g.fillStyle(0x3498db, 0.6);
         g.fillCircle(20, 20, 20);
-        g.generateTexture('joy-thumb', 40, 40);
+        g.generateTexture('joy-thumb-move', 40, 40);
         g.clear();
 
-        g.fillStyle(0xe74c3c, 0.6);
-        g.fillCircle(30, 30, 30);
-        g.generateTexture('dodge-btn', 60, 60);
+        g.fillStyle(0xe67e22, 0.6);
+        g.fillCircle(20, 20, 20);
+        g.generateTexture('joy-thumb-aim', 40, 40);
+        g.clear();
+
+        // Dodge Button
+        g.fillStyle(0xe74c3c, 0.7);
+        g.fillCircle(28, 28, 28);
+        g.generateTexture('dodge-btn', 56, 56);
         g.destroy();
     }
 
     create() {
-        this.input.addPointer(2);
+        this.input.addPointer(3); // Support multi-touch for two sticks + dodge
 
         // Parameters
         this.speed = 125;
@@ -147,6 +153,8 @@ class MainScene extends Phaser.Scene {
         this.lastDirection = new Phaser.Math.Vector2(0, 1);
         this.dodgeVector = new Phaser.Math.Vector2(0, 0);
         this.touchMoveVector = new Phaser.Math.Vector2(0, 0);
+        this.touchAimVector = new Phaser.Math.Vector2(0, -1);
+        this.isAimingWithStick = false;
 
         // Networking setup
         this.peer = null;
@@ -171,11 +179,11 @@ class MainScene extends Phaser.Scene {
         this.remoteGun = this.add.sprite(this.remotePlayer.x, this.remotePlayer.y, 'gun').setOrigin(0, 0.5);
         this.remoteGun.setVisible(false);
 
-        // UI Layer
+        // UI Layers
         this.reloadGraphics = this.add.graphics().setDepth(10);
         this.uiGraphics = this.add.graphics().setDepth(100);
 
-        // Input
+        // Keyboard Controls (Backup)
         this.keys = this.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
             down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -186,14 +194,6 @@ class MainScene extends Phaser.Scene {
 
         this.setupVirtualControls();
         this.setupNetworking();
-
-        this.input.on('pointerdown', (pointer) => {
-            if (this.isPointerOverUI(pointer)) return;
-            if (!this.isDodging && this.canFire) {
-                this.aimGunAt(pointer.x, pointer.y);
-                this.fireBullet(this.player.x, this.player.y, this.gun.rotation, true);
-            }
-        });
 
         this.input.keyboard.on('keydown-SPACE', () => {
             if (!this.isDodging && this.canDodge) this.startDodge();
@@ -212,11 +212,9 @@ class MainScene extends Phaser.Scene {
         const joinInput = document.getElementById('join-input');
         const statusText = document.getElementById('status-text');
 
-        // Host Game
         hostBtn.addEventListener('click', () => {
             const code = Math.random().toString(36).substring(2, 6).toUpperCase();
             this.peer = new Peer('MH-' + code);
-
             statusText.innerText = "Connecting...";
 
             this.peer.on('open', () => {
@@ -232,7 +230,6 @@ class MainScene extends Phaser.Scene {
             });
         });
 
-        // Join Game
         joinBtn.addEventListener('click', () => {
             const code = joinInput.value.trim().toUpperCase();
             if (code.length !== 4) return;
@@ -250,12 +247,10 @@ class MainScene extends Phaser.Scene {
 
     initConnection() {
         const statusText = document.getElementById('status-text');
-        
         this.conn.on('open', () => {
             statusText.innerText = "CONNECTED!";
             statusText.style.color = "#2ecc71";
             
-            // Switch local player textures for Player 2
             if (!this.isHost) {
                 this.player.setTexture('player2');
                 this.remotePlayer.setTexture('player1');
@@ -290,42 +285,64 @@ class MainScene extends Phaser.Scene {
     }
 
     setupVirtualControls() {
-        this.joyBase = this.add.image(100, 500, 'joy-base').setScrollFactor(0).setDepth(100).setInteractive();
-        this.joyThumb = this.add.image(100, 500, 'joy-thumb').setScrollFactor(0).setDepth(101);
+        // 1. LEFT JOYSTICK (Movement) - Bottom Left
+        this.moveBase = this.add.image(100, 500, 'joy-base').setScrollFactor(0).setDepth(100).setInteractive();
+        this.moveThumb = this.add.image(100, 500, 'joy-thumb-move').setScrollFactor(0).setDepth(101);
 
-        this.joyBase.on('pointerdown', (p) => this.handleJoystick(p));
-        this.joyBase.on('pointermove', (p) => { if (p.isDown) this.handleJoystick(p); });
-        this.joyBase.on('pointerup', () => this.resetJoystick());
+        this.moveBase.on('pointerdown', (p) => this.handleMoveJoystick(p));
+        this.moveBase.on('pointermove', (p) => { if (p.isDown) this.handleMoveJoystick(p); });
+        this.moveBase.on('pointerup', () => this.resetMoveJoystick());
 
-        this.dodgeBtn = this.add.image(700, 500, 'dodge-btn').setScrollFactor(0).setDepth(100).setInteractive();
+        // 2. RIGHT JOYSTICK (Aiming) - Bottom Right
+        this.aimBase = this.add.image(700, 500, 'joy-base').setScrollFactor(0).setDepth(100).setInteractive();
+        this.aimThumb = this.add.image(700, 500, 'joy-thumb-aim').setScrollFactor(0).setDepth(101);
+
+        this.aimBase.on('pointerdown', (p) => this.handleAimJoystick(p));
+        this.aimBase.on('pointermove', (p) => { if (p.isDown) this.handleAimJoystick(p); });
+        this.aimBase.on('pointerup', () => this.resetAimJoystick());
+
+        // 3. DODGE ROLL BUTTON - Placed Above Right Aim Joystick
+        this.dodgeBtn = this.add.image(700, 390, 'dodge-btn').setScrollFactor(0).setDepth(100).setInteractive();
+        this.add.text(678, 382, 'ROLL', { font: 'bold 12px sans-serif', fill: '#ffffff' }).setDepth(101);
+
         this.dodgeBtn.on('pointerdown', () => {
             if (!this.isDodging && this.canDodge) this.startDodge();
         });
     }
 
-    handleJoystick(pointer) {
-        let angle = Phaser.Math.Angle.Between(this.joyBase.x, this.joyBase.y, pointer.x, pointer.y);
-        let dist = Phaser.Math.Distance.Between(this.joyBase.x, this.joyBase.y, pointer.x, pointer.y);
+    handleMoveJoystick(pointer) {
+        let angle = Phaser.Math.Angle.Between(this.moveBase.x, this.moveBase.y, pointer.x, pointer.y);
+        let dist = Phaser.Math.Distance.Between(this.moveBase.x, this.moveBase.y, pointer.x, pointer.y);
         let clampDist = Math.min(dist, 40);
 
-        this.joyThumb.x = this.joyBase.x + Math.cos(angle) * clampDist;
-        this.joyThumb.y = this.joyBase.y + Math.sin(angle) * clampDist;
+        this.moveThumb.x = this.moveBase.x + Math.cos(angle) * clampDist;
+        this.moveThumb.y = this.moveBase.y + Math.sin(angle) * clampDist;
 
         this.touchMoveVector.set(Math.cos(angle), Math.sin(angle));
     }
 
-    resetJoystick() {
-        this.joyThumb.x = this.joyBase.x;
-        this.joyThumb.y = this.joyBase.y;
+    resetMoveJoystick() {
+        this.moveThumb.x = this.moveBase.x;
+        this.moveThumb.y = this.moveBase.y;
         this.touchMoveVector.set(0, 0);
     }
 
-    isPointerOverUI(pointer) {
-        let distJoy = Phaser.Math.Distance.Between(pointer.x, pointer.y, this.joyBase.x, this.joyBase.y);
-        let distBtn = Phaser.Math.Distance.Between(pointer.x, pointer.y, this.dodgeBtn.x, this.dodgeBtn.y);
-        let uiBox = document.getElementById('multiplayer-ui').getBoundingClientRect();
-        let isOverMenu = (pointer.x >= uiBox.left && pointer.x <= uiBox.right && pointer.y >= uiBox.top && pointer.y <= uiBox.bottom);
-        return (distJoy <= 50 || distBtn <= 40 || isOverMenu);
+    handleAimJoystick(pointer) {
+        let angle = Phaser.Math.Angle.Between(this.aimBase.x, this.aimBase.y, pointer.x, pointer.y);
+        let dist = Phaser.Math.Distance.Between(this.aimBase.x, this.aimBase.y, pointer.x, pointer.y);
+        let clampDist = Math.min(dist, 40);
+
+        this.aimThumb.x = this.aimBase.x + Math.cos(angle) * clampDist;
+        this.aimThumb.y = this.aimBase.y + Math.sin(angle) * clampDist;
+
+        this.touchAimVector.set(Math.cos(angle), Math.sin(angle));
+        this.isAimingWithStick = true;
+    }
+
+    resetAimJoystick() {
+        this.aimThumb.x = this.aimBase.x;
+        this.aimThumb.y = this.aimBase.y;
+        this.isAimingWithStick = false;
     }
 
     spawnGiantEnemy(x, y) {
@@ -341,13 +358,13 @@ class MainScene extends Phaser.Scene {
     update(time, delta) {
         if (this.playerHealth <= 0) return;
 
-        const pointer = this.input.activePointer;
-
+        // 1. Dodging State
         if (this.isDodging) {
             this.player.setVelocity(this.dodgeVector.x * this.dodgeSpeed, this.dodgeVector.y * this.dodgeSpeed);
             this.gun.setVisible(false);
             this.reloadGraphics.clear();
         } else {
+            // Movement Logic
             let moveX = 0, moveY = 0;
             if (this.keys.left.isDown) moveX -= 1;
             if (this.keys.right.isDown) moveX += 1;
@@ -368,14 +385,27 @@ class MainScene extends Phaser.Scene {
                 this.player.setVelocity(0, 0);
             }
 
+            // Aiming & Gun Rotation
             this.gun.setVisible(true);
             this.gun.setPosition(this.player.x, this.player.y);
-            if (!this.sys.game.device.os.iOS && pointer.isDown) {
-                this.aimGunAt(pointer.x, pointer.y);
+
+            let aimAngle = this.gun.rotation;
+            if (this.isAimingWithStick) {
+                aimAngle = this.touchAimVector.angle();
+            } else if (this.input.activePointer.isDown && !this.sys.game.device.os.iOS) {
+                aimAngle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.x, this.input.activePointer.y);
+            }
+
+            this.gun.rotation = aimAngle;
+            this.gun.setFlipY(Math.abs(aimAngle) > Math.PI / 2);
+
+            // AUTO-FIRE ON LINE OF SIGHT CHECK
+            if (this.canFire) {
+                this.checkLineOfSightAndFire();
             }
         }
 
-        // Send network state update (20 FPS)
+        // Send network state update
         if (this.time.now % 50 < 20) {
             this.sendNetData({
                 type: 'state',
@@ -386,12 +416,11 @@ class MainScene extends Phaser.Scene {
             });
         }
 
-        // Enemy AI (Driven by Host)
+        // Enemy AI
         this.enemies.getChildren().forEach((enemy) => {
             if (!enemy.active) return;
 
             if (!enemy.isAttacking) {
-                // Target whichever player is closest
                 let target = this.player;
                 if (this.remotePlayer.visible) {
                     let d1 = Phaser.Math.Distance.BetweenPoints(this.player, enemy);
@@ -416,6 +445,27 @@ class MainScene extends Phaser.Scene {
 
         this.updateReloadBar();
         this.renderPlayerHealthUI();
+    }
+
+    // Line of Sight Auto-Firing System
+    checkLineOfSightAndFire() {
+        const gunAngle = this.gun.rotation;
+        const rayLength = 600; // Raycast sight range
+
+        let rayX = this.player.x + Math.cos(gunAngle) * rayLength;
+        let rayY = this.player.y + Math.sin(gunAngle) * rayLength;
+
+        let sightLine = new Phaser.Geom.Line(this.player.x, this.player.y, rayX, rayY);
+
+        // Check if line of sight intersects with any monster body
+        this.enemies.getChildren().forEach((enemy) => {
+            if (!enemy.active) return;
+
+            let enemyBounds = new Phaser.Geom.Circle(enemy.x, enemy.y, 48); // Giant collision radius
+            if (Phaser.Geom.Intersects.LineToCircle(sightLine, enemyBounds)) {
+                this.fireBullet(this.player.x, this.player.y, gunAngle, true);
+            }
+        });
     }
 
     performShockwaveAttack(enemy, time) {
@@ -483,12 +533,6 @@ class MainScene extends Phaser.Scene {
             this.player.setAlpha(1.0);
             this.time.delayedCall(this.dodgeCooldown, () => { this.canDodge = true; });
         });
-    }
-
-    aimGunAt(targetX, targetY) {
-        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, targetX, targetY);
-        this.gun.rotation = angle;
-        this.gun.setFlipY(Math.abs(angle) > Math.PI / 2);
     }
 
     fireBullet(startX, startY, angle, isLocal = true) {
