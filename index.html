@@ -138,7 +138,12 @@ class MainScene extends Phaser.Scene {
     }
 
     create() {
-        this.input.addPointer(3); // Support multi-touch
+        this.input.addPointer(3); // Multi-touch support
+
+        // Expanded Arena World Bounds
+        this.worldWidth = 1600;
+        this.worldHeight = 1200;
+        this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
         // Parameters
         this.speed = 125;
@@ -148,7 +153,7 @@ class MainScene extends Phaser.Scene {
         this.bulletSpeed = 500;
         this.fireCooldown = 1500;
         
-        // 0.5 Second Hold Target Lock
+        // 0.5s Target Hold
         this.targetAimHoldTime = 500; 
         this.targetAimTimer = 0;
 
@@ -175,21 +180,25 @@ class MainScene extends Phaser.Scene {
         this.shockwaves = this.physics.add.group();
 
         // Players
-        this.player = this.physics.add.sprite(350, 300, 'player1');
+        this.player = this.physics.add.sprite(750, 600, 'player1');
         this.player.setCollideWorldBounds(true);
 
         this.gun = this.add.sprite(this.player.x, this.player.y, 'gun').setOrigin(0, 0.5);
 
-        this.remotePlayer = this.physics.add.sprite(450, 300, 'player2');
+        this.remotePlayer = this.physics.add.sprite(850, 600, 'player2');
         this.remotePlayer.setCollideWorldBounds(true);
         this.remotePlayer.setVisible(false);
 
         this.remoteGun = this.add.sprite(this.remotePlayer.x, this.remotePlayer.y, 'gun').setOrigin(0, 0.5);
         this.remoteGun.setVisible(false);
 
+        // --- CAMERA FOLLOW SYSTEM ---
+        this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
+        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+
         // Graphics Layers
         this.reloadGraphics = this.add.graphics().setDepth(10);
-        this.uiGraphics = this.add.graphics().setDepth(100);
+        this.uiGraphics = this.add.graphics().setDepth(100).setScrollFactor(0);
 
         // Keyboard Backup Controls
         this.keys = this.input.keyboard.addKeys({
@@ -203,6 +212,18 @@ class MainScene extends Phaser.Scene {
         this.setupVirtualControls();
         this.setupNetworking();
 
+        // --- GLOBAL TOUCH RELEASE WATCHER ---
+        // Instantly snaps controls back to center when touch is released
+        this.input.on('pointerup', () => {
+            let activePointers = [this.input.pointer1, this.input.pointer2, this.input.pointer3];
+            let anyDown = activePointers.some(p => p && p.isDown);
+            
+            if (!anyDown) {
+                this.resetMoveJoystick();
+                this.resetAimJoystick();
+            }
+        });
+
         this.input.keyboard.on('keydown-SPACE', () => {
             if (!this.isDodging && this.canDodge) this.startDodge();
         });
@@ -211,7 +232,7 @@ class MainScene extends Phaser.Scene {
         this.physics.add.overlap(this.bullets, this.enemies, this.handleBulletEnemyCollision, null, this);
         this.physics.add.overlap(this.player, this.shockwaves, this.handlePlayerShockwaveCollision, null, this);
 
-        this.spawnGiantEnemy(400, 150);
+        this.spawnGiantEnemy(800, 300);
     }
 
     setupNetworking() {
@@ -295,31 +316,30 @@ class MainScene extends Phaser.Scene {
     setupVirtualControls() {
         const ctrlDepth = 200;
 
-        // Shifted joysticks upward (Y = 420 instead of 490) so thumbs easily reach on iPhone 13
         const leftStickX = 110;
         const rightStickX = 690;
         const sticksY = 420;
         const dodgeY = 300;
 
-        // 1. LEFT JOYSTICK (Movement) - Raised Position
+        // FIXED SCREEN SCROLL FACTORS FOR HUD & CONTROLS
         this.moveBase = this.add.image(leftStickX, sticksY, 'joy-base').setScrollFactor(0).setDepth(ctrlDepth).setInteractive();
         this.moveThumb = this.add.image(leftStickX, sticksY, 'joy-thumb-move').setScrollFactor(0).setDepth(ctrlDepth + 1);
 
         this.moveBase.on('pointerdown', (p) => this.handleMoveJoystick(p));
         this.moveBase.on('pointermove', (p) => { if (p.isDown) this.handleMoveJoystick(p); });
         this.moveBase.on('pointerup', () => this.resetMoveJoystick());
+        this.moveBase.on('pointerout', () => this.resetMoveJoystick());
 
-        // 2. RIGHT JOYSTICK (Aiming) - Raised Position
         this.aimBase = this.add.image(rightStickX, sticksY, 'joy-base').setScrollFactor(0).setDepth(ctrlDepth).setInteractive();
         this.aimThumb = this.add.image(rightStickX, sticksY, 'joy-thumb-aim').setScrollFactor(0).setDepth(ctrlDepth + 1);
 
         this.aimBase.on('pointerdown', (p) => this.handleAimJoystick(p));
         this.aimBase.on('pointermove', (p) => { if (p.isDown) this.handleAimJoystick(p); });
         this.aimBase.on('pointerup', () => this.resetAimJoystick());
+        this.aimBase.on('pointerout', () => this.resetAimJoystick());
 
-        // 3. DODGE ROLL BUTTON - Positioned Above Aim Joystick
         this.dodgeBtn = this.add.image(rightStickX, dodgeY, 'dodge-btn').setScrollFactor(0).setDepth(ctrlDepth).setInteractive();
-        this.dodgeText = this.add.text(rightStickX - 24, dodgeY - 8, 'ROLL', { font: 'bold 13px sans-serif', fill: '#ffffff' }).setDepth(ctrlDepth + 1);
+        this.dodgeText = this.add.text(rightStickX - 24, dodgeY - 8, 'ROLL', { font: 'bold 13px sans-serif', fill: '#ffffff' }).setScrollFactor(0).setDepth(ctrlDepth + 1);
 
         this.dodgeBtn.on('pointerdown', () => {
             if (!this.isDodging && this.canDodge) this.startDodge();
@@ -409,8 +429,6 @@ class MainScene extends Phaser.Scene {
             let aimAngle = this.gun.rotation;
             if (this.isAimingWithStick) {
                 aimAngle = this.touchAimVector.angle();
-            } else if (this.input.activePointer.isDown && !this.sys.game.device.os.iOS) {
-                aimAngle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.x, this.input.activePointer.y);
             }
 
             this.gun.rotation = aimAngle;
