@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Monster Proximity Parry Cue Engine</title>
+    <title>Midnight X: Randomized School & Monster Proximity Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -96,7 +96,7 @@
         <div class="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-11/12 text-center">
             <div id="gesture-cue" class="bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/40 text-[8px] font-bold text-emerald-400 tracking-wider uppercase shadow-lg inline-flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>Swipe ↑↓ (Move Depth) | ←→ (Shift Lane)</span>
+                <span>Swipe ↑↓ (Move +5m) | ←→ (Shift Lane)</span>
             </div>
         </div>
 
@@ -128,7 +128,7 @@
         <div id="lunch-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
             <div class="bg-zinc-900 border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full text-center">
                 <h3 class="font-black text-amber-400 text-sm title-font">12:00 PM — LUNCH BELL</h3>
-                <p class="text-xs text-zinc-300">The lunch bell rings! You have 1 conversation window. Choose wisely—talking to one classmate causes the others to head off to lunch!</p>
+                <p class="text-xs text-zinc-300">The lunch bell rings! Classmates are scattered across school hallways. You have 1 conversation window!</p>
                 <button id="start-lunch-btn" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black rounded-xl text-xs active:scale-95 transition">
                     ENTER LUNCH HALLWAY
                 </button>
@@ -196,13 +196,11 @@
 
             <!-- 3-Lane Combat Action Bar -->
             <div id="combat-btn-group" class="hidden grid-cols-2 gap-2 pointer-events-auto">
-                <!-- Unified Attack Button with Flashing Heavy Ready State -->
                 <button id="pad-action-attack" class="py-3 bg-rose-600 active:bg-rose-500 hover:bg-rose-500 text-white rounded-xl font-black text-xs border border-rose-400 flex flex-col items-center justify-center shadow select-none transition-all duration-100">
                     <span id="atk-btn-label">ATTACK [Z]</span>
                     <span id="atk-btn-sub" class="text-[8px] text-rose-200 font-extrabold">TAP: Light | HOLD 0.5s: Heavy</span>
                 </button>
                 
-                <!-- Precision Parry Button -->
                 <button id="pad-action-parry" class="py-3 bg-amber-500 active:bg-amber-400 hover:bg-amber-400 text-zinc-950 rounded-xl font-black text-xs border border-amber-300 flex flex-col items-center justify-center shadow select-none">
                     <span>PARRY [SPACE]</span>
                     <span class="text-[8px] text-amber-900 font-extrabold">Requires 100% Stamina</span>
@@ -213,7 +211,7 @@
 
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
-        <span class="text-emerald-400 font-bold">3-Lane Nav:</span> Swipe ↑↓ (Move Depth) | Swipe ←→ (Shift Lane)<br>
+        <span class="text-emerald-400 font-bold">3-Lane Nav:</span> Swipe ↑↓ (Move Depth +5m) | Swipe ←→ (Shift Lane)<br>
         <span class="text-violet-400 font-bold">Combat:</span> Z (Tap: Light / Hold 0.5s: Heavy in Same Lane) | Space (0.5s Precision Parry)
     </div>
 
@@ -283,6 +281,7 @@
             stunTimer: 0
         };
 
+        // Classmate NPCs on Grid (Will be randomly placed!)
         let npcs = {
             anya: { name: "Anya", lane: 2, depth: 3, present: true, avatar: "A", color: "#ec4899" },
             beatrix: { name: "Beatrix (Occult)", lane: 0, depth: 5, present: true, avatar: "B", color: "#a855f7" },
@@ -296,6 +295,31 @@
         function addFloatingText(str, x, y, color) {
             floatingTexts.push({ str, x, y, color, alpha: 1.0, life: 35 });
         }
+
+        // --- RANDOMIZE CLASSMATE LOCATIONS ACROSS SCHOOL ---
+        function randomizeNpcLocations() {
+            // Randomize lane (0, 1, or 2) and depth step (2 through 7) so they are scattered!
+            const usedSpots = new Set();
+
+            for (let key in npcs) {
+                let npc = npcs[key];
+                npc.present = true;
+                
+                let lane, depth, spotKey;
+                do {
+                    lane = Math.floor(Math.random() * 3);
+                    depth = 2 + Math.floor(Math.random() * 6); // Depth steps 2 to 7
+                    spotKey = `${lane}_${depth}`;
+                } while (usedSpots.has(spotKey));
+
+                usedSpots.add(spotKey);
+                npc.lane = lane;
+                npc.depth = depth;
+            }
+        }
+
+        // Initialize randomized placement at game start
+        randomizeNpcLocations();
 
         // --- TIME ADVANCEMENT LOGIC ---
         function advanceTime(minutesToAdd) {
@@ -386,9 +410,7 @@
         };
 
         function resetNpcAvailability() {
-            npcs.anya.present = true;
-            npcs.beatrix.present = true;
-            npcs.mina.present = true;
+            randomizeNpcLocations(); // Scatter students randomly each period!
         }
 
         function triggerLunchModal() {
@@ -524,7 +546,6 @@
             }
             player.stamina -= 30;
 
-            // HEAVY ATTACK DAMAGE CONDITION: ENEMY MUST BE IN THE EXACT SAME LANE AS XIO!
             if (currentLane === cryptid.lane) {
                 const subBonus = equippedSubweapon === 'HOLY_WATER' ? 25 : 0;
                 const dmg = 65 + damageBuff + subBonus;
@@ -544,11 +565,10 @@
             
             const holdSeconds = player.attackHoldTimer / 60;
 
-            if (player.hasAutoFiredHeavy || holdSeconds >= 0.5) { // 0.5 SECOND THRESHOLD
+            if (player.hasAutoFiredHeavy || holdSeconds >= 0.5) {
                 player.isHoldingAttack = false;
                 player.attackHoldTimer = 0;
             } else {
-                // LIGHT SLASH ATTACK (QUICK TAP RELEASE BEFORE 0.5s)
                 player.isHoldingAttack = false;
                 player.attackHoldTimer = 0;
 
@@ -558,7 +578,6 @@
                 }
                 player.stamina -= 15;
 
-                // STRICT LANE MATCHING FOR LIGHT SLASH TOO: ONLY HITS WHEN IN SAME LANE!
                 if (currentLane === cryptid.lane) {
                     const subBonus = equippedSubweapon === 'SILVER_BLADE' ? 15 : 0;
                     const dmg = 18 + damageBuff + subBonus;
@@ -584,7 +603,7 @@
 
             if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(currentLane)) {
                 player.isParrying = true;
-                player.parryWindow = 30; // 0.5s (30 frames) active parry window
+                player.parryWindow = 30; // 0.5s active parry window
                 const parryMult = currentLane === 1 ? 2.0 : 1.0;
                 const counterDmg = 25 * parryMult;
                 cryptid.hp = Math.max(0, cryptid.hp - counterDmg);
@@ -634,12 +653,13 @@
                 stepBobTime = 1.0;
                 greenBorderPulse = 1.0;
 
+                // EVERY STEP MOVEMENT EQUALS 5 MINUTES PASSING IN-GAME!
                 if (mode === 'EXPLORE_DAY') {
-                    advanceTime(2);
+                    advanceTime(5);
                 }
 
-                if (dz > 0) addFloatingText(`FORWARD (+2m)`, W / 2, H - 140, '#4ade80');
-                else addFloatingText(`BACK (+2m)`, W / 2, H - 140, '#38bdf8');
+                if (dz > 0) addFloatingText(`FORWARD (+5m)`, W / 2, H - 140, '#4ade80');
+                else addFloatingText(`BACK (+5m)`, W / 2, H - 140, '#38bdf8');
             }
 
             if (depthZ === 4) {
@@ -837,13 +857,11 @@
 
             if (greenBorderPulse > 0) greenBorderPulse -= 0.03;
 
-            // Decay Parry Active Window
             if (player.parryWindow > 0) {
                 player.parryWindow--;
                 if (player.parryWindow <= 0) player.isParrying = false;
             }
 
-            // Attack Charge Timer & FLASHING HEAVY READY INDICATOR (AT 30 FRAMES / 0.5s)
             if (mode === 'COMBAT') {
                 const atkBtn = document.getElementById('pad-action-attack');
                 const atkLabel = document.getElementById('atk-btn-label');
@@ -853,8 +871,7 @@
                     player.attackHoldTimer++;
                     const progressSeconds = (player.attackHoldTimer / 60).toFixed(1);
 
-                    if (player.attackHoldTimer >= 30) { // EXACTLY 0.5 SECONDS (30 FRAMES @ 60 FPS)
-                        // FLASHING HEAVY READY STATE
+                    if (player.attackHoldTimer >= 30) {
                         if (atkBtn) {
                             atkBtn.className = "py-3 heavy-ready-flash rounded-xl font-black text-xs border-2 border-amber-300 flex flex-col items-center justify-center select-none transition-all duration-100";
                         }
@@ -877,12 +894,10 @@
                     if (atkSub) atkSub.textContent = `TAP: Light | HOLD 0.5s: Heavy`;
                 }
 
-                // Passive Stamina Regeneration
                 if (player.stamina < player.maxStamina) {
                     player.stamina = Math.min(player.maxStamina, player.stamina + 0.35);
                 }
 
-                // Blindness Penalty
                 if (player.isBlinded) {
                     player.blindTimer--;
                     if (player.blindTimer <= 0) {
@@ -892,7 +907,6 @@
                     }
                 }
 
-                // ENEMY STUN TIMER DECAY
                 if (cryptid.isStunned) {
                     cryptid.stunTimer--;
                     if (cryptid.stunTimer <= 0) {
@@ -900,7 +914,6 @@
                         addFloatingText(`ENEMY RECOVERED FROM STUN!`, W / 2, H / 2 - 30, '#ef4444');
                     }
                 } else {
-                    // Cryptid 3-Lane AI Movement
                     cryptid.moveTimer++;
                     if (cryptid.moveTimer > 80 && cryptid.telegraphedLanes.length === 0) {
                         cryptid.moveTimer = 0;
@@ -915,7 +928,6 @@
 
                     cryptid.attackTimer++;
 
-                    // Telegraph Phase
                     if (cryptid.attackTimer > cryptid.attackSpeed - 40 && cryptid.telegraphedLanes.length === 0) {
                         if (Math.random() < 0.5) cryptid.telegraphedLanes = [cryptid.lane];
                         else {
@@ -924,14 +936,12 @@
                         }
                     }
 
-                    // 0.5s (30 Frames) Red Circle Parry Indicator Window Cue
                     cryptid.showParryIndicator = cryptid.attackTimer > cryptid.attackSpeed - 30 && cryptid.telegraphedLanes.length > 0;
 
-                    // Strike Phase!
                     if (cryptid.attackTimer >= cryptid.attackSpeed) {
                         if (cryptid.telegraphedLanes.includes(currentLane)) {
                             if (player.isParrying && player.parryWindow > 0) {
-                                // Parry handled in precision parry function
+                                // Parry handled in precision parry
                             } else {
                                 const dmg = 22;
                                 player.hp = Math.max(0, player.hp - dmg);
@@ -995,7 +1005,6 @@
                 render3LaneCombat();
             }
 
-            // Render Over-The-Shoulder Xiomara
             renderOverTheShoulderXio();
 
             if (flashAlpha > 0) {
@@ -1154,13 +1163,13 @@
             ctx.font = '900 10px Inter, sans-serif';
             ctx.fillText(`◄ STEP ${depthZ} / 8 ►`, (rx1 + rx2) / 2 - 32, greenY2 - 8);
 
-            // Render Classmates
+            // Render Classmates at Randomized Grid Positions!
             for (let key in npcs) {
                 let npc = npcs[key];
                 if (npc.present && depthZ < npc.depth) {
                     const npcScale = 1 + (displayDepthZ / 8) * 0.5;
                     const npcX = vpX + (npc.lane - 1) * 25 * npcScale;
-                    const npcY = vpY + 20 * npcScale;
+                    const npcY = vpY + (npc.depth * 10) * npcScale;
 
                     ctx.fillStyle = npc.color;
                     ctx.fillRect(npcX - 8, npcY, 16 * npcScale, 30 * npcScale);
@@ -1215,9 +1224,9 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // RED CIRCLE PARRY INDICATOR CUE (POSITIONED CLOSE TO MONSTER AT Y = vpY + 105)
+                // RED CIRCLE PARRY INDICATOR CUE (MOVED CLOSE TO MONSTER AT Y = vpY + 105)
                 if (isTelegraphed && cryptid.showParryIndicator && isPlayerLane) {
-                    const cueY = vpY + 105; // Placed near monster's feet (Y ~ 329) instead of screen bottom
+                    const cueY = vpY + 105;
                     const t = (cueY - (vpY + 20)) / (H - (vpY + 20));
                     const x1 = lx1 + (rx1 - lx1) * t;
                     const x2 = lx2 + (rx2 - lx2) * t;
@@ -1252,7 +1261,7 @@
                 }
             }
 
-            // CRYPTID BOSS IN 3-LANE VIEW (300 HP BAR)
+            // CRYPTID BOSS IN 3-LANE VIEW
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
             const cryptidY = vpY + 45;
 
@@ -1337,7 +1346,7 @@
             ctx.strokeRect(baseX - 12, baseY - 98, 26, 20);
             ctx.fillRect(baseX - 12, baseY - 98, 26, 20);
 
-            // Ponytail Hair (Matches sketch framing)
+            // Ponytail Hair
             ctx.fillStyle = '#27272a';
             ctx.beginPath();
             ctx.arc(baseX - 18, baseY - 182, 22, 0, Math.PI * 2);
@@ -1349,7 +1358,7 @@
             ctx.fill();
             ctx.stroke();
 
-            // Melee Weapon (Bokken / Club across hip)
+            // Melee Weapon
             ctx.strokeStyle = '#e4e4e7';
             ctx.lineWidth = 6;
             ctx.beginPath();
@@ -1357,7 +1366,7 @@
             ctx.lineTo(baseX + 60, baseY - 125);
             ctx.stroke();
 
-            // Parry Aura Effect (Only renders while active during parryWindow > 0!)
+            // Parry Aura Effect
             if (player.isParrying && player.parryWindow > 0) {
                 ctx.strokeStyle = '#38bdf8';
                 ctx.lineWidth = 4;
