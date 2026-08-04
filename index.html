@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Phaser 3 Top-Down Player & Weapon</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* Prevents mobile browser scrolling */
+            font-family: sans-serif;
+        }
+        #game-container {
+            border: 2px solid #444;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container"></div>
+
+<script>
+class MainScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'MainScene' });
+    }
+
+    preload() {
+        // 1. Player Body
+        let g = this.make.graphics({ x: 0, y: 0, add: false });
+        g.fillStyle(0x3498db, 1);
+        g.fillCircle(16, 16, 16);
+        g.generateTexture('player', 32, 32);
+        g.clear();
+
+        // 2. Gun Sprite (Flintlock Musket Style)
+        g.fillStyle(0x7f8c8d, 1);
+        g.fillRect(0, 4, 22, 8);
+        g.fillStyle(0x2c3e50, 1);
+        g.fillRect(4, 6, 6, 4);
+        g.generateTexture('gun', 22, 16);
+        g.clear();
+
+        // 3. Bullet Sprite (Black Powder Lead Ball)
+        g.fillStyle(0xd1ccc0, 1);
+        g.fillCircle(4, 4, 4);
+        g.generateTexture('bullet', 8, 8);
+        g.clear();
+
+        // 4. Virtual Joystick Graphics
+        g.fillStyle(0xffffff, 0.2);
+        g.fillCircle(40, 40, 40);
+        g.generateTexture('joy-base', 80, 80);
+        g.clear();
+
+        g.fillStyle(0xffffff, 0.5);
+        g.fillCircle(20, 20, 20);
+        g.generateTexture('joy-thumb', 40, 40);
+        g.clear();
+
+        // 5. Virtual Dodge Button Graphics
+        g.fillStyle(0xe74c3c, 0.6);
+        g.fillCircle(30, 30, 30);
+        g.generateTexture('dodge-btn', 60, 60);
+        g.destroy();
+    }
+
+    create() {
+        // Multi-touch support for iOS
+        this.input.addPointer(2);
+
+        // Movement & Dodge Parameters
+        this.speed = 125;
+        this.dodgeSpeed = 350;
+        this.dodgeDuration = 400;
+        this.dodgeCooldown = 600;
+        this.bulletSpeed = 600;
+
+        // --- 1800s Musket / Flintlock Fire Rate Setup ---
+        this.fireRate = 1500; // 1.5 second reload delay
+        this.canShoot = true;
+
+        // State Flags
+        this.isDodging = false;
+        this.canDodge = true;
+        this.currentWeapon = "GUN";
+        this.lastDirection = new Phaser.Math.Vector2(0, 1);
+        this.dodgeVector = new Phaser.Math.Vector2(0, 0);
+        this.touchMoveVector = new Phaser.Math.Vector2(0, 0);
+
+        // Player & Gun
+        this.player = this.physics.add.sprite(400, 300, 'player');
+        this.player.setCollideWorldBounds(true);
+
+        this.gun = this.add.sprite(this.player.x, this.player.y, 'gun');
+        this.gun.setOrigin(0, 0.5);
+
+        // Visual Reloading Progress Bar
+        this.reloadBarBg = this.add.graphics();
+        this.reloadBarFill = this.add.graphics();
+
+        // Bullets Group
+        this.bullets = this.physics.add.group({
+            defaultKey: 'bullet',
+            maxSize: 30
+        });
+
+        // Keyboard Setup
+        this.keys = this.input.keyboard.addKeys({
+            up: Phaser.Input.Keyboard.KeyCodes.W,
+            down: Phaser.Input.Keyboard.KeyCodes.S,
+            left: Phaser.Input.Keyboard.KeyCodes.A,
+            right: Phaser.Input.Keyboard.KeyCodes.D,
+            dodge: Phaser.Input.Keyboard.KeyCodes.SPACE
+        });
+
+        // --- Touch UI Setup ---
+        this.setupVirtualControls();
+
+        // Tap to Shoot / Aim
+        this.input.on('pointerdown', (pointer) => {
+            if (this.isPointerOverUI(pointer)) return;
+
+            if (!this.isDodging && this.currentWeapon === "GUN" && this.canShoot) {
+                this.aimGunAt(pointer.x, pointer.y);
+                this.fireBullet();
+            }
+        });
+
+        // Keyboard Dodge
+        this.input.keyboard.on('keydown-SPACE', () => {
+            if (!this.isDodging && this.canDodge) {
+                this.startDodge();
+            }
+        });
+    }
+
+    setupVirtualControls() {
+        this.joyBase = this.add.image(100, 500, 'joy-base').setScrollFactor(0).setDepth(100).setInteractive();
+        this.joyThumb = this.add.image(100, 500, 'joy-thumb').setScrollFactor(0).setDepth(101);
+
+        this.joyBase.on('pointerdown', (p) => this.handleJoystick(p));
+        this.joyBase.on('pointermove', (p) => { if (p.isDown) this.handleJoystick(p); });
+        this.joyBase.on('pointerup', () => this.resetJoystick());
+
+        this.dodgeBtn = this.add.image(700, 500, 'dodge-btn').setScrollFactor(0).setDepth(100).setInteractive();
+        this.dodgeBtn.on('pointerdown', () => {
+            if (!this.isDodging && this.canDodge) this.startDodge();
+        });
+    }
+
+    handleJoystick(pointer) {
+        let angle = Phaser.Math.Angle.Between(this.joyBase.x, this.joyBase.y, pointer.x, pointer.y);
+        let dist = Phaser.Math.Distance.Between(this.joyBase.x, this.joyBase.y, pointer.x, pointer.y);
+        let maxDist = 40;
+
+        let clampDist = Math.min(dist, maxDist);
+        this.joyThumb.x = this.joyBase.x + Math.cos(angle) * clampDist;
+        this.joyThumb.y = this.joyBase.y + Math.sin(angle) * clampDist;
+
+        this.touchMoveVector.set(Math.cos(angle), Math.sin(angle));
+    }
+
+    resetJoystick() {
+        this.joyThumb.x = this.joyBase.x;
+        this.joyThumb.y = this.joyBase.y;
+        this.touchMoveVector.set(0, 0);
+    }
+
+    isPointerOverUI(pointer) {
+        let distJoy = Phaser.Math.Distance.Between(pointer.x, pointer.y, this.joyBase.x, this.joyBase.y);
+        let distBtn = Phaser.Math.Distance.Between(pointer.x, pointer.y, this.dodgeBtn.x, this.dodgeBtn.y);
+        return (distJoy <= 50 || distBtn <= 40);
+    }
+
+    update() {
+        const pointer = this.input.activePointer;
+
+        // Update Reload Bar Position Above Player
+        if (!this.canShoot && this.reloadTimer) {
+            let progress = this.reloadTimer.getProgress();
+            
+            this.reloadBarBg.clear();
+            this.reloadBarBg.fillStyle(0x000000, 0.5);
+            this.reloadBarBg.fillRect(this.player.x - 20, this.player.y - 30, 40, 6);
+
+            this.reloadBarFill.clear();
+            this.reloadBarFill.fillStyle(0xf1c40f, 1);
+            this.reloadBarFill.fillRect(this.player.x - 20, this.player.y - 30, 40 * progress, 6);
+        } else {
+            this.reloadBarBg.clear();
+            this.reloadBarFill.clear();
+        }
+
+        // 1. Dodging State
+        if (this.isDodging) {
+            this.player.setVelocity(this.dodgeVector.x * this.dodgeSpeed, this.dodgeVector.y * this.dodgeSpeed);
+            this.gun.setVisible(false);
+            return;
+        }
+
+        // 2. Combined Keyboard + Touch Movement
+        let moveX = 0;
+        let moveY = 0;
+
+        if (this.keys.left.isDown) moveX -= 1;
+        if (this.keys.right.isDown) moveX += 1;
+        if (this.keys.up.isDown) moveY -= 1;
+        if (this.keys.down.isDown) moveY += 1;
+
+        let moveVector = new Phaser.Math.Vector2(moveX, moveY);
+
+        if (this.touchMoveVector.length() > 0) {
+            moveVector.copy(this.touchMoveVector);
+        } else if (moveVector.length() > 0) {
+            moveVector.normalize();
+        }
+
+        if (moveVector.length() > 0) {
+            this.lastDirection.copy(moveVector);
+            this.player.setVelocity(moveVector.x * this.speed, moveVector.y * this.speed);
+        } else {
+            this.player.setVelocity(0, 0);
+        }
+
+        // 3. Aiming
+        if (this.currentWeapon === "GUN") {
+            this.gun.setVisible(true);
+            this.gun.setPosition(this.player.x, this.player.y);
+
+            if (!this.sys.game.device.os.iOS && pointer.isDown && this.canShoot) {
+                this.aimGunAt(pointer.x, pointer.y);
+            }
+        } else {
+            this.gun.setVisible(false);
+        }
+    }
+
+    aimGunAt(targetX, targetY) {
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, targetX, targetY);
+        this.gun.rotation = angle;
+        this.gun.setFlipY(Math.abs(angle) > Math.PI / 2);
+    }
+
+    startDodge() {
+        this.isDodging = true;
+        this.canDodge = false;
+
+        if (this.touchMoveVector.length() > 0) {
+            this.dodgeVector.copy(this.touchMoveVector);
+        } else {
+            let moveX = 0, moveY = 0;
+            if (this.keys.left.isDown) moveX -= 1;
+            if (this.keys.right.isDown) moveX += 1;
+            if (this.keys.up.isDown) moveY -= 1;
+            if (this.keys.down.isDown) moveY += 1;
+
+            let inputVector = new Phaser.Math.Vector2(moveX, moveY);
+            if (inputVector.length() > 0) {
+                this.dodgeVector.copy(inputVector.normalize());
+            } else {
+                this.dodgeVector.copy(this.lastDirection);
+            }
+        }
+
+        this.time.delayedCall(this.dodgeDuration, () => {
+            this.isDodging = false;
+            this.time.delayedCall(this.dodgeCooldown, () => { this.canDodge = true; });
+        });
+    }
+
+    fireBullet() {
+        this.canShoot = false; // Block immediate follow-up shots
+
+        const gunLength = 22;
+        const angle = this.gun.rotation;
+        const spawnX = this.gun.x + Math.cos(angle) * gunLength;
+        const spawnY = this.gun.y + Math.sin(angle) * gunLength;
+
+        let bullet = this.bullets.get(spawnX, spawnY);
+        if (bullet) {
+            bullet.setActive(true).setVisible(true).setPosition(spawnX, spawnY);
+            bullet.rotation = angle;
+            this.physics.velocityFromRotation(angle, this.bulletSpeed, bullet.body.velocity);
+
+            this.time.delayedCall(3000, () => {
+                if (bullet.active) {
+                    bullet.setActive(false).setVisible(false);
+                    bullet.body.stop();
+                }
+            });
+        }
+
+        // Start Reloading Cooldown Timer
+        this.reloadTimer = this.time.delayedCall(this.fireRate, () => {
+            this.canShoot = true;
+        });
+    }
+}
+
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    parent: 'game-container',
+    backgroundColor: '#2c3e50',
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    },
+    physics: {
+        default: 'arcade',
+        arcade: { gravity: { y: 0 }, debug: false }
+    },
+    scene: [MainScene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+
+</body>
+</html>
