@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Strict Same-Lane Combat Engine</title>
+    <title>Midnight X: Monster Proximity Parry Cue Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -199,7 +199,7 @@
                 <!-- Unified Attack Button with Flashing Heavy Ready State -->
                 <button id="pad-action-attack" class="py-3 bg-rose-600 active:bg-rose-500 hover:bg-rose-500 text-white rounded-xl font-black text-xs border border-rose-400 flex flex-col items-center justify-center shadow select-none transition-all duration-100">
                     <span id="atk-btn-label">ATTACK [Z]</span>
-                    <span id="atk-btn-sub" class="text-[8px] text-rose-200 font-extrabold">TAP: Light | HOLD 2.5s: Heavy</span>
+                    <span id="atk-btn-sub" class="text-[8px] text-rose-200 font-extrabold">TAP: Light | HOLD 0.5s: Heavy</span>
                 </button>
                 
                 <!-- Precision Parry Button -->
@@ -214,7 +214,7 @@
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
         <span class="text-emerald-400 font-bold">3-Lane Nav:</span> Swipe ↑↓ (Move Depth) | Swipe ←→ (Shift Lane)<br>
-        <span class="text-violet-400 font-bold">Combat:</span> Z (Tap: Light / Hold 2.5s: Heavy in Same Lane) | Space (0.5s Precision Parry)
+        <span class="text-violet-400 font-bold">Combat:</span> Z (Tap: Light / Hold 0.5s: Heavy in Same Lane) | Space (0.5s Precision Parry)
     </div>
 
     <script>
@@ -531,7 +531,7 @@
                 cryptid.hp = Math.max(0, cryptid.hp - dmg);
                 screenShake = 16;
                 stepBobTime = 1.2;
-                addFloatingText(`★ 2.5s HEAVY THRUST CRIT! -${dmg}`, W / 2, H / 2 - 50, '#fbbf24');
+                addFloatingText(`★ 0.5s HEAVY THRUST CRIT! -${dmg}`, W / 2, H / 2 - 50, '#fbbf24');
             } else {
                 addFloatingText(`HEAVY MISSED! (WRONG LANE)`, W / 2, H / 2 - 50, '#a1a1aa');
             }
@@ -544,11 +544,11 @@
             
             const holdSeconds = player.attackHoldTimer / 60;
 
-            if (player.hasAutoFiredHeavy || holdSeconds >= 2.5) {
+            if (player.hasAutoFiredHeavy || holdSeconds >= 0.5) { // 0.5 SECOND THRESHOLD
                 player.isHoldingAttack = false;
                 player.attackHoldTimer = 0;
             } else {
-                // LIGHT SLASH ATTACK (QUICK TAP RELEASE)
+                // LIGHT SLASH ATTACK (QUICK TAP RELEASE BEFORE 0.5s)
                 player.isHoldingAttack = false;
                 player.attackHoldTimer = 0;
 
@@ -843,7 +843,7 @@
                 if (player.parryWindow <= 0) player.isParrying = false;
             }
 
-            // Attack Charge Timer & FLASHING HEAVY READY INDICATOR
+            // Attack Charge Timer & FLASHING HEAVY READY INDICATOR (AT 30 FRAMES / 0.5s)
             if (mode === 'COMBAT') {
                 const atkBtn = document.getElementById('pad-action-attack');
                 const atkLabel = document.getElementById('atk-btn-label');
@@ -853,7 +853,8 @@
                     player.attackHoldTimer++;
                     const progressSeconds = (player.attackHoldTimer / 60).toFixed(1);
 
-                    if (player.attackHoldTimer >= 150) { // 2.5s @ 60fps
+                    if (player.attackHoldTimer >= 30) { // EXACTLY 0.5 SECONDS (30 FRAMES @ 60 FPS)
+                        // FLASHING HEAVY READY STATE
                         if (atkBtn) {
                             atkBtn.className = "py-3 heavy-ready-flash rounded-xl font-black text-xs border-2 border-amber-300 flex flex-col items-center justify-center select-none transition-all duration-100";
                         }
@@ -865,7 +866,7 @@
                         if (atkBtn) {
                             atkBtn.className = "py-3 bg-rose-700 text-white rounded-xl font-black text-xs border border-rose-400 flex flex-col items-center justify-center shadow select-none transition-all duration-100";
                         }
-                        if (atkLabel) atkLabel.textContent = `CHARGING: ${progressSeconds}s / 2.5s`;
+                        if (atkLabel) atkLabel.textContent = `CHARGING: ${progressSeconds}s / 0.5s`;
                         if (atkSub) atkSub.textContent = `LOCKED IN HEAVY CHARGE...`;
                     }
                 } else {
@@ -873,7 +874,7 @@
                         atkBtn.className = "py-3 bg-rose-600 active:bg-rose-500 hover:bg-rose-500 text-white rounded-xl font-black text-xs border border-rose-400 flex flex-col items-center justify-center shadow select-none transition-all duration-100";
                     }
                     if (atkLabel) atkLabel.textContent = `ATTACK [Z]`;
-                    if (atkSub) atkSub.textContent = `TAP: Light | HOLD 2.5s: Heavy`;
+                    if (atkSub) atkSub.textContent = `TAP: Light | HOLD 0.5s: Heavy`;
                 }
 
                 // Passive Stamina Regeneration
@@ -1170,7 +1171,7 @@
             }
         }
 
-        // 2. RENDER 3-LANE COMBAT
+        // 2. RENDER 3-LANE COMBAT (WITH MONSTER PROXIMITY RED PARRY INDICATOR CUE)
         function render3LaneCombat() {
             ctx.fillStyle = '#030305';
             ctx.fillRect(0, 0, W, H);
@@ -1214,27 +1215,30 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // RED CIRCLE PARRY INDICATOR CUE
+                // RED CIRCLE PARRY INDICATOR CUE (POSITIONED CLOSE TO MONSTER AT Y = vpY + 105)
                 if (isTelegraphed && cryptid.showParryIndicator && isPlayerLane) {
-                    const cueX = (rx1 + rx2) / 2;
-                    const cueY = H - 85;
+                    const cueY = vpY + 105; // Placed near monster's feet (Y ~ 329) instead of screen bottom
+                    const t = (cueY - (vpY + 20)) / (H - (vpY + 20));
+                    const x1 = lx1 + (rx1 - lx1) * t;
+                    const x2 = lx2 + (rx2 - lx2) * t;
+                    const cueX = (x1 + x2) / 2;
 
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
                     ctx.strokeStyle = '#ef4444';
                     ctx.lineWidth = 4;
                     ctx.beginPath();
-                    ctx.arc(cueX, cueY, 22, 0, Math.PI * 2);
+                    ctx.arc(cueX, cueY, 20, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.stroke();
 
                     ctx.fillStyle = '#fef08a';
                     ctx.beginPath();
-                    ctx.arc(cueX, cueY, 8, 0, Math.PI * 2);
+                    ctx.arc(cueX, cueY, 7, 0, Math.PI * 2);
                     ctx.fill();
 
                     ctx.fillStyle = '#ffffff';
                     ctx.font = '900 8px Inter, sans-serif';
-                    ctx.fillText("PARRY NOW!", cueX - 25, cueY - 26);
+                    ctx.fillText("PARRY NOW!", cueX - 25, cueY - 24);
                 } else if (isTelegraphed && isPlayerLane) {
                     ctx.fillStyle = '#fee2e2';
                     ctx.fillRect((rx1 + rx2) / 2 - 40, H - 75, 80, 16);
