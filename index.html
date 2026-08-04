@@ -7,14 +7,15 @@
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
-        body {
+        html, body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
             background-color: #111;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
             overflow: hidden;
             touch-action: none;
             font-family: sans-serif;
@@ -22,8 +23,11 @@
         }
         #game-container {
             position: relative;
-            border: 2px solid #444;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #multiplayer-ui {
             position: absolute;
@@ -111,30 +115,30 @@ class MainScene extends Phaser.Scene {
         g.clear();
 
         // Joystick Bases & Thumbs
-        g.fillStyle(0xffffff, 0.2);
-        g.fillCircle(40, 40, 40);
-        g.generateTexture('joy-base', 80, 80);
+        g.fillStyle(0xffffff, 0.25);
+        g.fillCircle(45, 45, 45);
+        g.generateTexture('joy-base', 90, 90);
         g.clear();
 
-        g.fillStyle(0x3498db, 0.6);
-        g.fillCircle(20, 20, 20);
-        g.generateTexture('joy-thumb-move', 40, 40);
+        g.fillStyle(0x3498db, 0.8);
+        g.fillCircle(22, 22, 22);
+        g.generateTexture('joy-thumb-move', 44, 44);
         g.clear();
 
-        g.fillStyle(0xe67e22, 0.6);
-        g.fillCircle(20, 20, 20);
-        g.generateTexture('joy-thumb-aim', 40, 40);
+        g.fillStyle(0xe67e22, 0.8);
+        g.fillCircle(22, 22, 22);
+        g.generateTexture('joy-thumb-aim', 44, 44);
         g.clear();
 
         // Dodge Button
-        g.fillStyle(0xe74c3c, 0.7);
-        g.fillCircle(28, 28, 28);
-        g.generateTexture('dodge-btn', 56, 56);
+        g.fillStyle(0xe74c3c, 0.8);
+        g.fillCircle(30, 30, 30);
+        g.generateTexture('dodge-btn', 60, 60);
         g.destroy();
     }
 
     create() {
-        this.input.addPointer(3); // Support multi-touch for two sticks + dodge
+        this.input.addPointer(3); // Support multi-touch for 2 joysticks + dodge button
 
         // Parameters
         this.speed = 125;
@@ -142,8 +146,13 @@ class MainScene extends Phaser.Scene {
         this.dodgeDuration = 400;
         this.dodgeCooldown = 600;
         this.bulletSpeed = 500;
-        this.fireCooldown = 1500;
+        this.fireCooldown = 1500; // 1800s Flintlock reload time
         
+        // Target lock-on parameters (0.5 Second Hold Required to Shoot)
+        this.targetAimHoldTime = 500; 
+        this.targetAimTimer = 0;
+        this.isAimingAtTarget = false;
+
         this.playerHealth = 3;
         this.isInvulnerable = false;
         this.canFire = true;
@@ -179,11 +188,11 @@ class MainScene extends Phaser.Scene {
         this.remoteGun = this.add.sprite(this.remotePlayer.x, this.remotePlayer.y, 'gun').setOrigin(0, 0.5);
         this.remoteGun.setVisible(false);
 
-        // UI Layers
+        // UI Graphics Layers
         this.reloadGraphics = this.add.graphics().setDepth(10);
         this.uiGraphics = this.add.graphics().setDepth(100);
 
-        // Keyboard Controls (Backup)
+        // Backup Keyboard Controls
         this.keys = this.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
             down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -285,25 +294,28 @@ class MainScene extends Phaser.Scene {
     }
 
     setupVirtualControls() {
-        // 1. LEFT JOYSTICK (Movement) - Bottom Left
-        this.moveBase = this.add.image(100, 500, 'joy-base').setScrollFactor(0).setDepth(100).setInteractive();
-        this.moveThumb = this.add.image(100, 500, 'joy-thumb-move').setScrollFactor(0).setDepth(101);
+        // High Depth Level (200+) ensures controls render over game elements on iPhone
+        const ctrlDepth = 200;
+
+        // 1. LEFT JOYSTICK (Movement) - Bottom-Left
+        this.moveBase = this.add.image(90, 490, 'joy-base').setScrollFactor(0).setDepth(ctrlDepth).setInteractive();
+        this.moveThumb = this.add.image(90, 490, 'joy-thumb-move').setScrollFactor(0).setDepth(ctrlDepth + 1);
 
         this.moveBase.on('pointerdown', (p) => this.handleMoveJoystick(p));
         this.moveBase.on('pointermove', (p) => { if (p.isDown) this.handleMoveJoystick(p); });
         this.moveBase.on('pointerup', () => this.resetMoveJoystick());
 
-        // 2. RIGHT JOYSTICK (Aiming) - Bottom Right
-        this.aimBase = this.add.image(700, 500, 'joy-base').setScrollFactor(0).setDepth(100).setInteractive();
-        this.aimThumb = this.add.image(700, 500, 'joy-thumb-aim').setScrollFactor(0).setDepth(101);
+        // 2. RIGHT JOYSTICK (Aiming) - Bottom-Right
+        this.aimBase = this.add.image(710, 490, 'joy-base').setScrollFactor(0).setDepth(ctrlDepth).setInteractive();
+        this.aimThumb = this.add.image(710, 490, 'joy-thumb-aim').setScrollFactor(0).setDepth(ctrlDepth + 1);
 
         this.aimBase.on('pointerdown', (p) => this.handleAimJoystick(p));
         this.aimBase.on('pointermove', (p) => { if (p.isDown) this.handleAimJoystick(p); });
         this.aimBase.on('pointerup', () => this.resetAimJoystick());
 
         // 3. DODGE ROLL BUTTON - Placed Above Right Aim Joystick
-        this.dodgeBtn = this.add.image(700, 390, 'dodge-btn').setScrollFactor(0).setDepth(100).setInteractive();
-        this.add.text(678, 382, 'ROLL', { font: 'bold 12px sans-serif', fill: '#ffffff' }).setDepth(101);
+        this.dodgeBtn = this.add.image(710, 370, 'dodge-btn').setScrollFactor(0).setDepth(ctrlDepth).setInteractive();
+        this.dodgeText = this.add.text(686, 362, 'ROLL', { font: 'bold 13px sans-serif', fill: '#ffffff' }).setDepth(ctrlDepth + 1);
 
         this.dodgeBtn.on('pointerdown', () => {
             if (!this.isDodging && this.canDodge) this.startDodge();
@@ -343,6 +355,7 @@ class MainScene extends Phaser.Scene {
         this.aimThumb.x = this.aimBase.x;
         this.aimThumb.y = this.aimBase.y;
         this.isAimingWithStick = false;
+        this.targetAimTimer = 0; // Reset auto-shoot lock timer
     }
 
     spawnGiantEnemy(x, y) {
@@ -385,7 +398,7 @@ class MainScene extends Phaser.Scene {
                 this.player.setVelocity(0, 0);
             }
 
-            // Aiming & Gun Rotation
+            // Aiming Logic
             this.gun.setVisible(true);
             this.gun.setPosition(this.player.x, this.player.y);
 
@@ -399,9 +412,11 @@ class MainScene extends Phaser.Scene {
             this.gun.rotation = aimAngle;
             this.gun.setFlipY(Math.abs(aimAngle) > Math.PI / 2);
 
-            // AUTO-FIRE ON LINE OF SIGHT CHECK
+            // 0.5-SECOND LOCK-ON AUTO-FIRE SYSTEM
             if (this.canFire) {
-                this.checkLineOfSightAndFire();
+                this.processTargetLockAndFire(delta);
+            } else {
+                this.targetAimTimer = 0;
             }
         }
 
@@ -447,25 +462,36 @@ class MainScene extends Phaser.Scene {
         this.renderPlayerHealthUI();
     }
 
-    // Line of Sight Auto-Firing System
-    checkLineOfSightAndFire() {
+    // Checks line-of-sight and accumulates target hold time up to 0.5 seconds
+    processTargetLockAndFire(delta) {
         const gunAngle = this.gun.rotation;
-        const rayLength = 600; // Raycast sight range
+        const rayLength = 600;
 
         let rayX = this.player.x + Math.cos(gunAngle) * rayLength;
         let rayY = this.player.y + Math.sin(gunAngle) * rayLength;
-
         let sightLine = new Phaser.Geom.Line(this.player.x, this.player.y, rayX, rayY);
 
-        // Check if line of sight intersects with any monster body
+        let intersectsTarget = false;
+
         this.enemies.getChildren().forEach((enemy) => {
             if (!enemy.active) return;
-
-            let enemyBounds = new Phaser.Geom.Circle(enemy.x, enemy.y, 48); // Giant collision radius
+            let enemyBounds = new Phaser.Geom.Circle(enemy.x, enemy.y, 48);
             if (Phaser.Geom.Intersects.LineToCircle(sightLine, enemyBounds)) {
-                this.fireBullet(this.player.x, this.player.y, gunAngle, true);
+                intersectsTarget = true;
             }
         });
+
+        if (intersectsTarget) {
+            this.targetAimTimer += delta; // Accumulate time pointed at monster
+            
+            // Once aimed continuously for 0.5 seconds (500 ms), auto-shoot!
+            if (this.targetAimTimer >= this.targetAimHoldTime) {
+                this.fireBullet(this.player.x, this.player.y, gunAngle, true);
+                this.targetAimTimer = 0;
+            }
+        } else {
+            this.targetAimTimer = 0; // Reset timer if sight is lost
+        }
     }
 
     performShockwaveAttack(enemy, time) {
