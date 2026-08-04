@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Centered Xio & Middle Lane Engine</title>
+    <title>Midnight X: Strict Same-Lane Combat Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -25,6 +25,13 @@
         .scanlines {
             background: linear-gradient(rgba(18, 16, 26, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
             background-size: 100% 4px, 6px 100%;
+        }
+        @keyframes flashBlink {
+            0%, 100% { background-color: #ffffff; color: #09090b; box-shadow: 0 0 15px #ffffff; }
+            50% { background-color: #fbbf24; color: #09090b; box-shadow: 0 0 25px #fbbf24; }
+        }
+        .heavy-ready-flash {
+            animation: flashBlink 0.25s infinite;
         }
     </style>
 </head>
@@ -189,11 +196,13 @@
 
             <!-- 3-Lane Combat Action Bar -->
             <div id="combat-btn-group" class="hidden grid-cols-2 gap-2 pointer-events-auto">
+                <!-- Unified Attack Button with Flashing Heavy Ready State -->
                 <button id="pad-action-attack" class="py-3 bg-rose-600 active:bg-rose-500 hover:bg-rose-500 text-white rounded-xl font-black text-xs border border-rose-400 flex flex-col items-center justify-center shadow select-none transition-all duration-100">
                     <span id="atk-btn-label">ATTACK [Z]</span>
                     <span id="atk-btn-sub" class="text-[8px] text-rose-200 font-extrabold">TAP: Light | HOLD 2.5s: Heavy</span>
                 </button>
                 
+                <!-- Precision Parry Button -->
                 <button id="pad-action-parry" class="py-3 bg-amber-500 active:bg-amber-400 hover:bg-amber-400 text-zinc-950 rounded-xl font-black text-xs border border-amber-300 flex flex-col items-center justify-center shadow select-none">
                     <span>PARRY [SPACE]</span>
                     <span class="text-[8px] text-amber-900 font-extrabold">Requires 100% Stamina</span>
@@ -205,7 +214,7 @@
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
         <span class="text-emerald-400 font-bold">3-Lane Nav:</span> Swipe ↑↓ (Move Depth) | Swipe ←→ (Shift Lane)<br>
-        <span class="text-violet-400 font-bold">Combat:</span> Z (Tap: Light / Hold 2.5s: Heavy in Same Lane) | Space (Precision Parry)
+        <span class="text-violet-400 font-bold">Combat:</span> Z (Tap: Light / Hold 2.5s: Heavy in Same Lane) | Space (0.5s Precision Parry)
     </div>
 
     <script>
@@ -254,7 +263,8 @@
             attackHoldTimer: 0,
             isHoldingAttack: false,
             isBlinded: false,
-            blindTimer: 0
+            blindTimer: 0,
+            hasAutoFiredHeavy: false
         };
 
         // Cryptid Boss Data (300 HP MAX HEALTH)
@@ -500,11 +510,13 @@
             if (mode !== 'COMBAT') return;
             player.isHoldingAttack = true;
             player.attackHoldTimer = 0;
+            player.hasAutoFiredHeavy = false;
         }
 
         function executeHeavyThrust() {
             player.isHoldingAttack = false;
             player.attackHoldTimer = 0;
+            player.hasAutoFiredHeavy = true;
 
             if (player.stamina < 30) {
                 addFloatingText(`NO STAMINA FOR HEAVY!`, W / 2, H / 2 - 30, '#ef4444');
@@ -512,14 +524,14 @@
             }
             player.stamina -= 30;
 
-            // HEAVY ATTACK CONDITION: ENEMY MUST BE IN THE EXACT SAME LANE AS XIO!
+            // HEAVY ATTACK DAMAGE CONDITION: ENEMY MUST BE IN THE EXACT SAME LANE AS XIO!
             if (currentLane === cryptid.lane) {
                 const subBonus = equippedSubweapon === 'HOLY_WATER' ? 25 : 0;
                 const dmg = 65 + damageBuff + subBonus;
                 cryptid.hp = Math.max(0, cryptid.hp - dmg);
                 screenShake = 16;
                 stepBobTime = 1.2;
-                addFloatingText(`DIRECT HEAVY CRIT! -${dmg}`, W / 2, H / 2 - 50, '#fbbf24');
+                addFloatingText(`★ 2.5s HEAVY THRUST CRIT! -${dmg}`, W / 2, H / 2 - 50, '#fbbf24');
             } else {
                 addFloatingText(`HEAVY MISSED! (WRONG LANE)`, W / 2, H / 2 - 50, '#a1a1aa');
             }
@@ -532,8 +544,9 @@
             
             const holdSeconds = player.attackHoldTimer / 60;
 
-            if (holdSeconds >= 2.5) {
-                executeHeavyThrust();
+            if (player.hasAutoFiredHeavy || holdSeconds >= 2.5) {
+                player.isHoldingAttack = false;
+                player.attackHoldTimer = 0;
             } else {
                 // LIGHT SLASH ATTACK (QUICK TAP RELEASE)
                 player.isHoldingAttack = false;
@@ -545,8 +558,8 @@
                 }
                 player.stamina -= 15;
 
-                const laneDiff = Math.abs(currentLane - cryptid.lane);
-                if (laneDiff <= 1) {
+                // STRICT LANE MATCHING FOR LIGHT SLASH TOO: ONLY HITS WHEN IN SAME LANE!
+                if (currentLane === cryptid.lane) {
                     const subBonus = equippedSubweapon === 'SILVER_BLADE' ? 15 : 0;
                     const dmg = 18 + damageBuff + subBonus;
                     cryptid.hp = Math.max(0, cryptid.hp - dmg);
@@ -554,7 +567,7 @@
                     stepBobTime = 0.8;
                     addFloatingText(`LIGHT SLASH! -${dmg}`, W / 2, H / 2 - 30, '#f43f5e');
                 } else {
-                    addFloatingText(`MISSED! (OUT OF RANGE)`, W / 2, H / 2 - 30, '#a1a1aa');
+                    addFloatingText(`MISSED! (WRONG LANE)`, W / 2, H / 2 - 30, '#a1a1aa');
                 }
             }
 
@@ -571,14 +584,14 @@
 
             if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(currentLane)) {
                 player.isParrying = true;
-                player.parryWindow = 10;
+                player.parryWindow = 30; // 0.5s (30 frames) active parry window
                 const parryMult = currentLane === 1 ? 2.0 : 1.0;
                 const counterDmg = 25 * parryMult;
                 cryptid.hp = Math.max(0, cryptid.hp - counterDmg);
                 screenShake = 12;
 
                 cryptid.isStunned = true;
-                cryptid.stunTimer = 180;
+                cryptid.stunTimer = 180; // 3 second stun
                 cryptid.attackTimer = 0;
                 cryptid.telegraphedLanes = [];
                 cryptid.showParryIndicator = false;
@@ -824,19 +837,25 @@
 
             if (greenBorderPulse > 0) greenBorderPulse -= 0.03;
 
+            // Decay Parry Active Window
+            if (player.parryWindow > 0) {
+                player.parryWindow--;
+                if (player.parryWindow <= 0) player.isParrying = false;
+            }
+
             // Attack Charge Timer & FLASHING HEAVY READY INDICATOR
             if (mode === 'COMBAT') {
                 const atkBtn = document.getElementById('pad-action-attack');
                 const atkLabel = document.getElementById('atk-btn-label');
                 const atkSub = document.getElementById('atk-btn-sub');
 
-                if (player.isHoldingAttack) {
+                if (player.isHoldingAttack && !player.hasAutoFiredHeavy) {
                     player.attackHoldTimer++;
                     const progressSeconds = (player.attackHoldTimer / 60).toFixed(1);
 
                     if (player.attackHoldTimer >= 150) { // 2.5s @ 60fps
                         if (atkBtn) {
-                            atkBtn.className = "py-3 bg-white text-zinc-950 rounded-xl font-black text-xs border-2 border-amber-300 flex flex-col items-center justify-center shadow-lg shadow-white/80 select-none animate-pulse transition-all duration-100";
+                            atkBtn.className = "py-3 heavy-ready-flash rounded-xl font-black text-xs border-2 border-amber-300 flex flex-col items-center justify-center select-none transition-all duration-100";
                         }
                         if (atkLabel) atkLabel.textContent = `★ EXECUTING HEAVY!`;
                         if (atkSub) atkSub.textContent = `AUTOMATIC HEAVY THRUST!`;
@@ -904,7 +923,8 @@
                         }
                     }
 
-                    cryptid.showParryIndicator = cryptid.attackTimer > cryptid.attackSpeed - 18 && cryptid.telegraphedLanes.length > 0;
+                    // 0.5s (30 Frames) Red Circle Parry Indicator Window Cue
+                    cryptid.showParryIndicator = cryptid.attackTimer > cryptid.attackSpeed - 30 && cryptid.telegraphedLanes.length > 0;
 
                     // Strike Phase!
                     if (cryptid.attackTimer >= cryptid.attackSpeed) {
@@ -974,7 +994,7 @@
                 render3LaneCombat();
             }
 
-            // Render Over-The-Shoulder Xiomara with Centered Middle Lane Position & Right Lane Flip!
+            // Render Over-The-Shoulder Xiomara
             renderOverTheShoulderXio();
 
             if (flashAlpha > 0) {
@@ -1274,23 +1294,18 @@
 
         // 3. RENDER OVER-THE-SHOULDER XIOMARA (EXACT LANE CENTER ANCHORING)
         function renderOverTheShoulderXio() {
-            // Calculate exact horizontal center of the active lane on the bottom of the canvas
-            // Bottom of Lane 0: Center = 70
-            // Bottom of Lane 1 (Middle Lane): Center = 180 (DEAD CENTER OF CANVAS)
-            // Bottom of Lane 2: Center = 290
             let targetBaseX = 180 + (displayLane - 1) * 110;
 
             ctx.save();
             ctx.translate(targetBaseX, stepBobY);
 
-            // FLIP SPRITE HORIZONTALLY WHEN STANDING IN RIGHT LANE (LANE 2)
             if (displayLane > 1.2) {
                 ctx.scale(-1, 1);
             }
 
             ctx.rotate(leanAngle);
 
-            const baseX = 0; // Origin centered on active lane
+            const baseX = 0;
             const baseY = H;
 
             // Jacket / Vest Body ("MX" Vest branding)
@@ -1338,8 +1353,8 @@
             ctx.lineTo(baseX + 60, baseY - 125);
             ctx.stroke();
 
-            // Parry Aura Effect
-            if (player.isParrying) {
+            // Parry Aura Effect (Only renders while active during parryWindow > 0!)
+            if (player.isParrying && player.parryWindow > 0) {
                 ctx.strokeStyle = '#38bdf8';
                 ctx.lineWidth = 4;
                 ctx.beginPath();
