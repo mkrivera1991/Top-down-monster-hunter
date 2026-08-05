@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Randomized School & Monster Proximity Engine</title>
+    <title>Midnight X: Custom Image Asset Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -96,7 +96,7 @@
         <div class="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-11/12 text-center">
             <div id="gesture-cue" class="bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/40 text-[8px] font-bold text-emerald-400 tracking-wider uppercase shadow-lg inline-flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>Swipe ↑↓ (Move +5m) | ←→ (Shift Lane)</span>
+                <span>Swipe ↑↓ (Move Depth) | ←→ (Shift Lane)</span>
             </div>
         </div>
 
@@ -128,7 +128,7 @@
         <div id="lunch-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
             <div class="bg-zinc-900 border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full text-center">
                 <h3 class="font-black text-amber-400 text-sm title-font">12:00 PM — LUNCH BELL</h3>
-                <p class="text-xs text-zinc-300">The lunch bell rings! Classmates are scattered across school hallways. You have 1 conversation window!</p>
+                <p class="text-xs text-zinc-300">The lunch bell rings! You have 1 conversation window. Choose wisely—talking to one classmate causes the others to head off to lunch!</p>
                 <button id="start-lunch-btn" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black rounded-xl text-xs active:scale-95 transition">
                     ENTER LUNCH HALLWAY
                 </button>
@@ -211,7 +211,7 @@
 
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
-        <span class="text-emerald-400 font-bold">3-Lane Nav:</span> Swipe ↑↓ (Move Depth +5m) | Swipe ←→ (Shift Lane)<br>
+        <span class="text-emerald-400 font-bold">3-Lane Nav:</span> Swipe ↑↓ (Move Depth) | Swipe ←→ (Shift Lane)<br>
         <span class="text-violet-400 font-bold">Combat:</span> Z (Tap: Light / Hold 0.5s: Heavy in Same Lane) | Space (0.5s Precision Parry)
     </div>
 
@@ -224,6 +224,18 @@
         const H = 640;
         canvas.width = W;
         canvas.height = H;
+
+        // =========================================================
+        // 🎨 IMAGE ASSET LOADING SETUP
+        // =========================================================
+        const xioImage = new Image();
+        xioImage.crossOrigin = "anonymous"; // Helps prevent security errors if linking from external sites like Imgur
+        
+        // IMPORTANT: Ensure your drawing is named 'image.png' and is in the 
+        // same folder/repository as this index.html file!
+        // Alternatively, replace this string with a direct URL (like 'https://i.imgur.com/your-image.png')
+        xioImage.src = 'image.png'; 
+        // =========================================================
 
         // --- ENGINE STATES ---
         let mode = 'EXPLORE_DAY'; // EXPLORE_DAY, CLASS_SELECT, DIALOGUE, LUNCH_PROMPT, DAD_WORKSHOP, TRANSITION, COMBAT, RESULTS
@@ -298,9 +310,7 @@
 
         // --- RANDOMIZE CLASSMATE LOCATIONS ACROSS SCHOOL ---
         function randomizeNpcLocations() {
-            // Randomize lane (0, 1, or 2) and depth step (2 through 7) so they are scattered!
             const usedSpots = new Set();
-
             for (let key in npcs) {
                 let npc = npcs[key];
                 npc.present = true;
@@ -318,7 +328,6 @@
             }
         }
 
-        // Initialize randomized placement at game start
         randomizeNpcLocations();
 
         // --- TIME ADVANCEMENT LOGIC ---
@@ -565,7 +574,7 @@
             
             const holdSeconds = player.attackHoldTimer / 60;
 
-            if (player.hasAutoFiredHeavy || holdSeconds >= 0.5) {
+            if (player.hasAutoFiredHeavy || holdSeconds >= 0.5) { // 0.5 SECOND THRESHOLD
                 player.isHoldingAttack = false;
                 player.attackHoldTimer = 0;
             } else {
@@ -653,9 +662,8 @@
                 stepBobTime = 1.0;
                 greenBorderPulse = 1.0;
 
-                // EVERY STEP MOVEMENT EQUALS 5 MINUTES PASSING IN-GAME!
                 if (mode === 'EXPLORE_DAY') {
-                    advanceTime(5);
+                    advanceTime(5); // +5 Minutes per step!
                 }
 
                 if (dz > 0) addFloatingText(`FORWARD (+5m)`, W / 2, H - 140, '#4ade80');
@@ -1005,6 +1013,7 @@
                 render3LaneCombat();
             }
 
+            // Render Over-The-Shoulder Xiomara
             renderOverTheShoulderXio();
 
             if (flashAlpha > 0) {
@@ -1180,7 +1189,7 @@
             }
         }
 
-        // 2. RENDER 3-LANE COMBAT (WITH MONSTER PROXIMITY RED PARRY INDICATOR CUE)
+        // 2. RENDER 3-LANE COMBAT
         function render3LaneCombat() {
             ctx.fillStyle = '#030305';
             ctx.fillRect(0, 0, W, H);
@@ -1298,81 +1307,51 @@
                 ctx.fillText(enemyLaneText, cryptidX - 25, cryptidY + 42);
             }
 
-            // Boss HP Bar (300 HP Scale)
+            // Boss HP Bar
             ctx.fillStyle = '#18181b';
             ctx.fillRect(cryptidX - 28, cryptidY - 70, 56, 5);
             ctx.fillStyle = cryptid.isStunned ? '#fef08a' : '#e11d48';
             ctx.fillRect(cryptidX - 28, cryptidY - 70, (Math.max(0, cryptid.hp) / cryptid.maxHp) * 56, 5);
         }
 
-        // 3. RENDER OVER-THE-SHOULDER XIOMARA (EXACT LANE CENTER ANCHORING)
+        // 3. RENDER CUSTOM IMAGE ASSET: OVER-THE-SHOULDER XIOMARA
         function renderOverTheShoulderXio() {
             let targetBaseX = 180 + (displayLane - 1) * 110;
 
             ctx.save();
             ctx.translate(targetBaseX, stepBobY);
 
+            // FLIP SPRITE HORIZONTALLY WHEN STANDING IN RIGHT LANE (LANE 2)
             if (displayLane > 1.2) {
                 ctx.scale(-1, 1);
             }
 
             ctx.rotate(leanAngle);
 
-            const baseX = 0;
-            const baseY = H;
-
-            // Jacket / Vest Body ("MX" Vest branding)
-            ctx.fillStyle = '#18181b';
-            ctx.strokeStyle = '#f4f4f5';
-            ctx.lineWidth = 2.5;
-
-            ctx.beginPath();
-            ctx.moveTo(baseX - 60, baseY);
-            ctx.lineTo(baseX - 50, baseY - 120);
-            ctx.lineTo(baseX - 25, baseY - 165);
-            ctx.lineTo(baseX + 25, baseY - 155);
-            ctx.lineTo(baseX + 15, baseY - 110);
-            ctx.lineTo(baseX + 25, baseY);
-            ctx.fill();
-            ctx.stroke();
-
-            // "MX" Logo on Vest
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '900 18px Inter, sans-serif';
-            ctx.fillText("MX", baseX - 20, baseY - 120);
-
-            // Utility Belt Pouch
-            ctx.fillStyle = '#27272a';
-            ctx.strokeRect(baseX - 12, baseY - 98, 26, 20);
-            ctx.fillRect(baseX - 12, baseY - 98, 26, 20);
-
-            // Ponytail Hair
-            ctx.fillStyle = '#27272a';
-            ctx.beginPath();
-            ctx.arc(baseX - 18, baseY - 182, 22, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(baseX - 32, baseY - 195, 14, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // Melee Weapon
-            ctx.strokeStyle = '#e4e4e7';
-            ctx.lineWidth = 6;
-            ctx.beginPath();
-            ctx.moveTo(baseX - 95, baseY + 10);
-            ctx.lineTo(baseX + 60, baseY - 125);
-            ctx.stroke();
-
-            // Parry Aura Effect
+            // Draw Blue Parry Aura behind Xio image
             if (player.isParrying && player.parryWindow > 0) {
+                ctx.shadowColor = '#38bdf8';
+                ctx.shadowBlur = 20;
                 ctx.strokeStyle = '#38bdf8';
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 6;
                 ctx.beginPath();
-                ctx.arc(baseX - 8, baseY - 110, 50, 0, Math.PI * 2);
+                ctx.arc(0, H - 120, 90, 0, Math.PI * 2);
                 ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
+            const imgW = 280; 
+            const imgH = 280;
+            
+            if (xioImage.complete && xioImage.naturalWidth !== 0) {
+                ctx.drawImage(xioImage, -imgW / 2 + 10, H - imgH + 20, imgW, imgH);
+            } else {
+                ctx.fillStyle = '#3f3f46';
+                ctx.fillRect(-40, H - 160, 80, 160);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px Inter';
+                ctx.fillText("IMAGE", -15, H - 80);
+                ctx.fillText("LOADING", -20, H - 65);
             }
 
             ctx.restore();
@@ -1392,4 +1371,5 @@
     </script>
 </body>
 </html>
+
 
