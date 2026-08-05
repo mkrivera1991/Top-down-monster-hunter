@@ -97,7 +97,7 @@
         </div>
 
         <!-- GESTURE CUE -->
-        <div class="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-11/12 text-center">
+        <div id="gesture-cue-wrapper" class="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-11/12 text-center transition-opacity duration-200">
             <div id="gesture-cue" class="bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/40 text-[8px] font-bold text-emerald-400 tracking-wider uppercase shadow-lg inline-flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                 <span>Swipe ↑ (Move) | Swipe ↓ (Turn 180°) | ←→ (Lane)</span>
@@ -792,7 +792,7 @@
             updateClockDisplay();
         };
 
-        // --- SWIPE GESTURE DETECTION (MENU LOCKED) ---
+        // --- SWIPE GESTURE DETECTION ---
         let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
         const SWIPE_THRESHOLD = 20;
         const gameApp = document.getElementById('game-app');
@@ -935,8 +935,6 @@
         atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startAttackCharge(); });
         atkBtn.addEventListener('touchend', (e) => { e.preventDefault(); releaseAttack(); });
         document.getElementById('pad-action-parry').onclick = () => executePrecisionParry();
-        document.getElementById('turn-left-btn').onclick = () => turnCorridor(-1);
-        document.getElementById('turn-right-btn').onclick = () => turnCorridor(1);
 
         window.addEventListener('keydown', (e) => {
             if (keys[e.code]) return; keys[e.code] = true;
@@ -1006,22 +1004,12 @@
             }
         }
 
-        function turnCorridor(dir) {
-            depthZ = 0; let idx = corridorCycle.indexOf(hallName); if (idx === -1) idx = 0;
-            idx = dir < 0 ? (idx - 1 + corridorCycle.length) % corridorCycle.length : (idx + 1) % corridorCycle.length;
-            hallName = corridorCycle[idx]; updateClockDisplay();
-            document.getElementById('intersection-ui').classList.add('hidden'); document.getElementById('intersection-ui').classList.remove('flex');
-            addFloatingText(`ENTERED ${hallName.toUpperCase()}`, W/2, H/2, '#c084fc');
-        }
-
         // --- UPDATE LOOP ---
         function update() {
             updateHUD();
 
             displayDepthZ += (depthZ - displayDepthZ) * 0.15;
             displayLane += (currentLane - displayLane) * 0.2;
-            
-            const bossBaseY = 15; 
             cryptid.displayLane += (cryptid.lane - cryptid.displayLane) * 0.15;
 
             if (stepBobTime > 0) { stepBobTime -= 0.05; stepBobY = Math.sin(stepBobTime * Math.PI * 4) * 6; } else stepBobY = 0;
@@ -1131,6 +1119,14 @@
             } else {
                 badge.classList.add('hidden');
             }
+            
+            // HIDE/SHOW GESTURE CUE BANNER BASED ON MODE
+            const gestureCue = document.getElementById('gesture-cue-wrapper');
+            if (mode === 'EXPLORE_DAY' || mode === 'EXPLORE_NIGHT') {
+                gestureCue.classList.remove('hidden');
+            } else {
+                gestureCue.classList.add('hidden');
+            }
         }
 
         // --- RENDER PIPELINE ---
@@ -1153,7 +1149,6 @@
 
             if (flashAlpha > 0) { ctx.fillStyle = `rgba(168, 85, 247, ${flashAlpha})`; ctx.fillRect(0, 0, W, H); }
 
-            // DRAW FLOATING TEXT
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
                 ctx.fillStyle = ft.color; ctx.font = '900 12px Inter, sans-serif'; ctx.fillText(ft.str, ft.x - 30, ft.y);
@@ -1161,15 +1156,14 @@
                 if (ft.life <= 0) floatingTexts.splice(i, 1);
             }
 
-            // --- DRAW PARRY INDICATOR EXPLICITLY OVER EVERYTHING (EXCEPT XIO) ---
+            // --- DRAW PARRY INDICATOR OVER EVERYTHING ---
             if (mode === 'COMBAT') {
                 for (let l = 0; l < 3; l++) {
                     if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(l) && currentLane === l) {
                         const vpX = W * 0.50; const vpY = H * 0.35;
                         const cueX = vpX + (l - 1) * 35;
-                        const cueY = vpY - 90; // MOVED HIGH ABOVE THE ENEMY HEAD
+                        const cueY = vpY - 90; 
 
-                        // Glowing Shadow effect
                         ctx.shadowColor = '#ef4444';
                         ctx.shadowBlur = 15;
 
@@ -1178,7 +1172,7 @@
                         ctx.lineWidth = 4;
                         ctx.beginPath(); ctx.arc(cueX, cueY, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
                         
-                        ctx.shadowBlur = 0; // Turn off shadow for text
+                        ctx.shadowBlur = 0; 
 
                         ctx.fillStyle = '#fef08a'; 
                         ctx.beginPath(); ctx.arc(cueX, cueY, 7, 0, Math.PI * 2); ctx.fill();
@@ -1292,7 +1286,6 @@
                 ctx.beginPath(); ctx.moveTo(lx1, vpY + 20); ctx.lineTo(lx2, vpY + 20); ctx.lineTo(rx2, H); ctx.lineTo(rx1, H); ctx.fill(); ctx.stroke();
             }
 
-            // ENEMY RENDER 
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
             const cryptidY = vpY + 15; 
             let isBoss = nightEnemies[activeCombatKey] && nightEnemies[activeCombatKey].type === 'BOSS';
