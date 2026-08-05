@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Time-Locked Exploration Engine</title>
+    <title>Midnight X: True Perspective Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -100,19 +100,19 @@
         <div id="gesture-cue-wrapper" class="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-11/12 text-center transition-opacity duration-200">
             <div id="gesture-cue" class="bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/40 text-[8px] font-bold text-emerald-400 tracking-wider uppercase shadow-lg inline-flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>Swipe ↑↓ (Step) | ←→ (Lane) | ↺ Btn (Turn)</span>
+                <span>Swipe ↑ (Move) | Swipe ↓ (Backstep) | ←→ (Lane)</span>
             </div>
         </div>
 
         <!-- INTERSECTION UI -->
         <div id="intersection-ui" class="absolute inset-x-4 top-28 z-30 hidden justify-between items-center pointer-events-auto">
-            <button id="turn-left-btn" class="px-3 py-2 bg-violet-950/90 border-2 border-violet-500 text-violet-200 rounded-xl text-xs font-black shadow-lg active:scale-95 transition flex items-center gap-1">
+            <button onclick="turnCorridor(-1)" class="px-3 py-2 bg-violet-950/90 border-2 border-violet-500 text-violet-200 rounded-xl text-xs font-black shadow-lg active:scale-95 transition flex items-center gap-1">
                 ◄ TURN LEFT
             </button>
             <span class="text-[8px] font-extrabold text-amber-400 bg-black/90 px-2 py-1 rounded-full border border-amber-500/50 uppercase tracking-widest animate-pulse">
                 3x3 CROSSING HALL
             </span>
-            <button id="turn-right-btn" class="px-3 py-2 bg-violet-950/90 border-2 border-violet-500 text-violet-200 rounded-xl text-xs font-black shadow-lg active:scale-95 transition flex items-center gap-1">
+            <button onclick="turnCorridor(1)" class="px-3 py-2 bg-violet-950/90 border-2 border-violet-500 text-violet-200 rounded-xl text-xs font-black shadow-lg active:scale-95 transition flex items-center gap-1">
                 TURN RIGHT ►
             </button>
         </div>
@@ -295,7 +295,7 @@
 
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
-        <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑↓ (Step) | ←→ (Lane) | ↺ Btn (Turn) <br>
+        <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑ (Forward) | Swipe ↓ (Backstep) | ←→ (Lane) <br>
         <span class="text-violet-400 font-bold">Fight:</span> Z (Tap 20 STM / Hold 50 STM) | Space (0.10s Precision Parry)
     </div>
 
@@ -691,6 +691,10 @@
                 cryptid.damageBase = 15 * dmgScale;
             }
 
+            // HIDE THE INTERSECTION UI DURING COMBAT
+            document.getElementById('intersection-ui').classList.add('hidden');
+            document.getElementById('intersection-ui').classList.remove('flex');
+
             document.getElementById('turn-badge').classList.remove('hidden');
             document.getElementById('night-explore-btn-group').classList.add('hidden');
             document.getElementById('night-explore-btn-group').classList.remove('flex');
@@ -722,6 +726,12 @@
                     mode = 'EXPLORE_NIGHT';
                     document.getElementById('turn-badge').classList.add('hidden');
                     
+                    // RESTORE INTERSECTION UI IF NEEDED
+                    if (depthZ === 4) {
+                        document.getElementById('intersection-ui').classList.remove('hidden');
+                        document.getElementById('intersection-ui').classList.add('flex');
+                    }
+                    
                     let pay = selectedDifficulty === 'EASY' ? 20 : selectedDifficulty === 'MEDIUM' ? 50 : 100;
                     money += pay;
                     updateMoneyUI();
@@ -746,6 +756,8 @@
             document.getElementById('turn-badge').classList.add('hidden');
             document.getElementById('combat-btn-group').classList.add('hidden');
             document.getElementById('night-explore-btn-group').classList.add('hidden');
+            document.getElementById('intersection-ui').classList.add('hidden');
+            document.getElementById('intersection-ui').classList.remove('flex');
             
             const resModal = document.getElementById('results-modal');
             resModal.classList.remove('hidden'); resModal.classList.add('flex');
@@ -792,7 +804,7 @@
             updateClockDisplay();
         };
 
-        // --- SWIPE GESTURE DETECTION ---
+        // --- SWIPE GESTURE DETECTION (MENU LOCKED) ---
         let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
         const SWIPE_THRESHOLD = 20;
         const gameApp = document.getElementById('game-app');
@@ -841,6 +853,24 @@
         }
 
         // --- 180 DEGREE TURN LOGIC ---
+        window.turnCorridor = function(dir) {
+            if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
+            
+            depthZ = 0; 
+            let idx = corridorCycle.indexOf(hallName); 
+            if (idx === -1) idx = 0;
+            
+            idx = dir < 0 ? (idx - 1 + corridorCycle.length) % corridorCycle.length : (idx + 1) % corridorCycle.length;
+            
+            hallName = corridorCycle[idx]; 
+            updateClockDisplay();
+            
+            document.getElementById('intersection-ui').classList.add('hidden'); 
+            document.getElementById('intersection-ui').classList.remove('flex');
+            
+            addFloatingText(`ENTERED ${hallName.toUpperCase()}`, W/2, H/2, '#c084fc');
+        };
+
         window.turn180 = function() {
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
             
@@ -904,7 +934,6 @@
             if (player.stamina < 20) { addFloatingText(`NEED 20 STM TO PARRY!`, W/2, H - 90, '#ef4444'); return; }
 
             if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(currentLane)) {
-                // EXTREMELY TIGHT PARRY WINDOW: 6 FRAMES (0.10 SECONDS)
                 player.isParrying = true; player.parryWindow = 6; 
                 
                 const counterDmg = parryDamageBuff * (currentLane === 1 ? 2.0 : 1.0);
@@ -936,8 +965,6 @@
         atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startAttackCharge(); });
         atkBtn.addEventListener('touchend', (e) => { e.preventDefault(); releaseAttack(); });
         document.getElementById('pad-action-parry').onclick = () => executePrecisionParry();
-        document.getElementById('turn-left-btn').onclick = () => turnCorridor(-1);
-        document.getElementById('turn-right-btn').onclick = () => turnCorridor(1);
 
         window.addEventListener('keydown', (e) => {
             if (keys[e.code]) return; keys[e.code] = true;
@@ -992,6 +1019,7 @@
             if (mode === 'EXPLORE_DAY') {
                 for (let key in npcs) {
                     let npc = npcs[key];
+                    let dist = npc.depth - displayDepthZ; 
                     if (npc.present && npc.hall === hallName && currentLane === npc.lane && depthZ >= npc.depth) {
                         triggerNPCDialogue(key.toUpperCase()); return;
                     }
@@ -1005,14 +1033,6 @@
                     }
                 }
             }
-        }
-
-        function turnCorridor(dir) {
-            depthZ = 0; let idx = corridorCycle.indexOf(hallName); if (idx === -1) idx = 0;
-            idx = dir < 0 ? (idx - 1 + corridorCycle.length) % corridorCycle.length : (idx + 1) % corridorCycle.length;
-            hallName = corridorCycle[idx]; updateClockDisplay();
-            document.getElementById('intersection-ui').classList.add('hidden'); document.getElementById('intersection-ui').classList.remove('flex');
-            addFloatingText(`ENTERED ${hallName.toUpperCase()}`, W/2, H/2, '#c084fc');
         }
 
         // --- UPDATE LOOP ---
@@ -1133,7 +1153,6 @@
                 badge.classList.add('hidden');
             }
             
-            // HIDE/SHOW GESTURE CUE BANNER BASED ON MODE
             const gestureCue = document.getElementById('gesture-cue-wrapper');
             if (mode === 'EXPLORE_DAY' || mode === 'EXPLORE_NIGHT') {
                 gestureCue.classList.remove('hidden');
@@ -1164,18 +1183,20 @@
 
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
-                ctx.fillStyle = ft.color; ctx.font = '900 12px Inter, sans-serif'; ctx.fillText(ft.str, ft.x - 30, ft.y);
+                ctx.fillStyle = ft.color; ctx.font = '900 12px Inter, sans-serif'; 
+                ctx.textAlign = 'left'; 
+                ctx.fillText(ft.str, ft.x - 30, ft.y);
                 ft.y -= 0.6; ft.life--;
                 if (ft.life <= 0) floatingTexts.splice(i, 1);
             }
 
-            // --- DRAW PARRY INDICATOR OVER EVERYTHING ---
+            // --- DRAW PARRY INDICATOR EXPLICITLY OVER EVERYTHING ---
             if (mode === 'COMBAT') {
                 for (let l = 0; l < 3; l++) {
                     if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(l) && currentLane === l) {
                         const vpX = W * 0.50; const vpY = H * 0.35;
                         const cueX = vpX + (l - 1) * 35;
-                        const cueY = vpY - 90; 
+                        const cueY = vpY - 95; // Lowered from -140 so it sits nicely just above the boss
 
                         ctx.shadowColor = '#ef4444';
                         ctx.shadowBlur = 15;
@@ -1192,7 +1213,8 @@
                         
                         ctx.fillStyle = '#ffffff'; 
                         ctx.font = '900 10px Inter, sans-serif'; 
-                        ctx.fillText("PARRY NOW!", cueX - 30, cueY - 26);
+                        ctx.textAlign = 'center';
+                        ctx.fillText("PARRY NOW!", cueX, cueY - 26);
                     }
                 }
             }
@@ -1200,7 +1222,7 @@
             ctx.restore(); requestAnimationFrame(() => { update(); render(); });
         }
 
-        // 1. DYNAMIC 3-LANE OVERWORLD CORRIDOR EXPLORATION
+        // 1. DYNAMIC 3-LANE OVERWORLD CORRIDOR EXPLORATION WITH TRUE Z-DEPTH PERSPECTIVE!
         function renderDynamic3LaneExploration() {
             ctx.fillStyle = mode.includes('NIGHT') || mode === 'INVENTORY' ? '#020202' : '#18181b';
             ctx.fillRect(0, 0, W, H);
@@ -1247,31 +1269,72 @@
             ctx.moveTo(activeLaneLx1, vpY); ctx.lineTo(activeLaneLx2, vpY); ctx.lineTo(activeLaneRx2, H); ctx.lineTo(activeLaneRx1, H);
             ctx.fill();
 
+            // --- RENDER ENTITIES WITH TRUE Z-DEPTH PERSPECTIVE! ---
             if (mode === 'EXPLORE_DAY') {
                 for (let key in npcs) {
                     let npc = npcs[key];
-                    if (npc.present && npc.hall === hallName && depthZ < npc.depth) {
-                        const scale = 1 + (displayDepthZ / 8) * 0.5;
-                        const x = vpX + (npc.lane - 1) * 25 * scale; const y = vpY + 20 * scale;
-                        ctx.fillStyle = npc.color; ctx.fillRect(x - 8, y, 16 * scale, 30 * scale);
-                        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px sans-serif'; ctx.fillText(npc.name, x - 22, y - 4);
+                    const dist = npc.depth - displayDepthZ;
+                    
+                    if (npc.present && npc.hall === hallName && dist >= 0 && dist <= 12) {
+                        const zVal = Math.max(0, Math.min(1, (12 - dist) / 12)); 
+                        const zFactor = Math.pow(zVal, 1.8);
+                        
+                        const y = vpY + (H - vpY) * zFactor;
+                        const laneCenterOffset = (npc.lane - 1) * (30 + (110 - 30) * zFactor);
+                        const x = vpX + laneCenterOffset;
+                        
+                        const scale = 0.15 + 1.85 * zFactor; 
+                        const w = 60 * scale;
+                        const h = 130 * scale;
+                        
+                        // Drop Shadow to anchor to the floor!
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                        ctx.beginPath(); ctx.ellipse(x, y, w*0.6, w*0.2, 0, 0, Math.PI*2); ctx.fill();
+
+                        ctx.fillStyle = npc.color;
+                        ctx.fillRect(x - w/2, y - h, w, h);
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = `900 ${Math.max(6, 12 * scale)}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(npc.name, x, y - h - 5 * scale);
                     }
                 }
             } else if (mode === 'EXPLORE_NIGHT' || mode === 'INVENTORY') {
                 for (let key in nightEnemies) {
                     let en = nightEnemies[key];
-                    if (en.present && en.hall === hallName && depthZ < en.depth) {
-                        const scale = 1 + (displayDepthZ / 8) * 0.5;
-                        const x = vpX + (en.lane - 1) * 25 * scale; const y = vpY + 20 * scale;
+                    const dist = en.depth - displayDepthZ;
+                    
+                    if (en.present && en.hall === hallName && dist >= 0 && dist <= 12) {
+                        const zVal = Math.max(0, Math.min(1, (12 - dist) / 12));
+                        const zFactor = Math.pow(zVal, 1.8);
                         
+                        const y = vpY + (H - vpY) * zFactor;
+                        const laneCenterOffset = (en.lane - 1) * (30 + (110 - 30) * zFactor);
+                        const x = vpX + laneCenterOffset;
+                        
+                        const scale = 0.15 + 1.85 * zFactor; 
+                        const w = (en.type === 'BOSS' ? 100 : 70) * scale;
+                        const h = (en.type === 'BOSS' ? 180 : 130) * scale;
+                        
+                        // Drop Shadow to anchor to the floor!
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                        ctx.beginPath(); ctx.ellipse(x, y, w*0.6, w*0.2, 0, 0, Math.PI*2); ctx.fill();
+
                         ctx.fillStyle = en.type === 'BOSS' ? '#b91c1c' : '#ef4444';
                         ctx.globalAlpha = 0.6 + Math.random() * 0.4;
-                        ctx.fillRect(x - 10, y - 5, 20 * scale, 35 * scale);
+                        ctx.fillRect(x - w/2, y - h, w, h);
                         ctx.globalAlpha = 1.0;
-                        ctx.fillStyle = '#ffffff'; ctx.font = '900 8px sans-serif'; ctx.fillText("⚠ " + en.name, x - 30, y - 10);
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = `900 ${Math.max(6, 12 * scale)}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText("⚠ " + en.name, x, y - h - 5 * scale);
                     }
                 }
             }
+            
+            ctx.textAlign = 'left';
         }
 
         // 2. RENDER 3-LANE COMBAT
@@ -1300,24 +1363,35 @@
             }
 
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
-            const cryptidY = vpY + 15; 
+            const cryptidY = vpY + 30; // LOWERED so they sit nicely on the floor!
             let isBoss = nightEnemies[activeCombatKey] && nightEnemies[activeCombatKey].type === 'BOSS';
 
+            // UPSCALED COMBAT SPRITES
+            const rX = isBoss ? 45 : 35;
+            const rY = isBoss ? 85 : 65;
+
             ctx.fillStyle = cryptid.isStunned ? '#fef08a' : (isBoss ? '#450a0a' : '#09090b');
-            ctx.beginPath(); ctx.ellipse(cryptidX, cryptidY, isBoss ? 28 : 24, isBoss ? 65 : 55, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(cryptidX, cryptidY, rX, rY, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = cryptid.isStunned ? '#eab308' : '#e11d48'; ctx.lineWidth = 3; ctx.stroke();
 
+            // Stunned Eyes
             ctx.fillStyle = cryptid.isStunned ? '#ef4444' : '#fef08a';
-            ctx.fillRect(cryptidX - 7, cryptidY - 25, 5, 5); ctx.fillRect(cryptidX + 3, cryptidY - 25, 5, 5);
+            ctx.fillRect(cryptidX - 12, cryptidY - 35, 8, 8); ctx.fillRect(cryptidX + 4, cryptidY - 35, 8, 8);
 
             if (cryptid.isStunned) {
                 const stunSec = (cryptid.stunTimer / 60).toFixed(1);
-                ctx.fillStyle = '#fef08a'; ctx.font = '900 10px Inter'; ctx.fillText(`★ STUNNED! (${stunSec}s) ★`, cryptidX - 45, cryptidY - 85);
+                ctx.fillStyle = '#fef08a'; 
+                ctx.font = '900 12px Inter'; 
+                ctx.textAlign = 'center';
+                ctx.fillText(`★ STUNNED! (${stunSec}s) ★`, cryptidX, cryptidY - rY - 10);
             }
 
-            ctx.fillStyle = '#18181b'; ctx.fillRect(cryptidX - 28, cryptidY - 70, 56, 5);
+            // HP Bar
+            ctx.fillStyle = '#18181b'; ctx.fillRect(cryptidX - 35, cryptidY - rY - 25, 70, 6);
             ctx.fillStyle = cryptid.isStunned ? '#fef08a' : '#e11d48'; 
-            ctx.fillRect(cryptidX - 28, cryptidY - 70, (Math.max(0, cryptid.hp) / cryptid.maxHp) * 56, 5);
+            ctx.fillRect(cryptidX - 35, cryptidY - rY - 25, (Math.max(0, cryptid.hp) / cryptid.maxHp) * 70, 6);
+            
+            ctx.textAlign = 'left';
         }
 
         // 3. RENDER CUSTOM IMAGE ASSET
@@ -1343,7 +1417,10 @@
 
         function renderTransitionGlitch() {
             ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H);
-            ctx.fillStyle = '#a855f7'; ctx.font = '900 16px Cinzel, serif'; ctx.fillText("PARANORMAL ANOMALY...", W / 2 - 110, H / 2);
+            ctx.fillStyle = '#a855f7'; ctx.font = '900 16px Cinzel, serif'; 
+            ctx.textAlign = 'center';
+            ctx.fillText("PARANORMAL ANOMALY...", W / 2, H / 2);
+            ctx.textAlign = 'left';
         }
 
         requestAnimationFrame(() => { update(); render(); });
