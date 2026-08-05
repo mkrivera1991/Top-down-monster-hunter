@@ -100,7 +100,7 @@
         <div id="gesture-cue-wrapper" class="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-11/12 text-center transition-opacity duration-200">
             <div id="gesture-cue" class="bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/40 text-[8px] font-bold text-emerald-400 tracking-wider uppercase shadow-lg inline-flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>Swipe ↑ (Move) | Swipe ↓ (Turn 180°) | ←→ (Lane)</span>
+                <span>Swipe ↑↓ (Step) | ←→ (Lane) | ↺ Btn (Turn)</span>
             </div>
         </div>
 
@@ -295,7 +295,7 @@
 
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
-        <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑ (Forward) | Swipe ↓ (Turn 180°) | ←→ (Lane) <br>
+        <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑↓ (Step) | ←→ (Lane) | ↺ Btn (Turn) <br>
         <span class="text-violet-400 font-bold">Fight:</span> Z (Tap 20 STM / Hold 50 STM) | Space (0.10s Precision Parry)
     </div>
 
@@ -904,6 +904,7 @@
             if (player.stamina < 20) { addFloatingText(`NEED 20 STM TO PARRY!`, W/2, H - 90, '#ef4444'); return; }
 
             if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(currentLane)) {
+                // EXTREMELY TIGHT PARRY WINDOW: 6 FRAMES (0.10 SECONDS)
                 player.isParrying = true; player.parryWindow = 6; 
                 
                 const counterDmg = parryDamageBuff * (currentLane === 1 ? 2.0 : 1.0);
@@ -935,6 +936,8 @@
         atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startAttackCharge(); });
         atkBtn.addEventListener('touchend', (e) => { e.preventDefault(); releaseAttack(); });
         document.getElementById('pad-action-parry').onclick = () => executePrecisionParry();
+        document.getElementById('turn-left-btn').onclick = () => turnCorridor(-1);
+        document.getElementById('turn-right-btn').onclick = () => turnCorridor(1);
 
         window.addEventListener('keydown', (e) => {
             if (keys[e.code]) return; keys[e.code] = true;
@@ -1004,12 +1007,22 @@
             }
         }
 
+        function turnCorridor(dir) {
+            depthZ = 0; let idx = corridorCycle.indexOf(hallName); if (idx === -1) idx = 0;
+            idx = dir < 0 ? (idx - 1 + corridorCycle.length) % corridorCycle.length : (idx + 1) % corridorCycle.length;
+            hallName = corridorCycle[idx]; updateClockDisplay();
+            document.getElementById('intersection-ui').classList.add('hidden'); document.getElementById('intersection-ui').classList.remove('flex');
+            addFloatingText(`ENTERED ${hallName.toUpperCase()}`, W/2, H/2, '#c084fc');
+        }
+
         // --- UPDATE LOOP ---
         function update() {
             updateHUD();
 
             displayDepthZ += (depthZ - displayDepthZ) * 0.15;
             displayLane += (currentLane - displayLane) * 0.2;
+            
+            const bossBaseY = 15; 
             cryptid.displayLane += (cryptid.lane - cryptid.displayLane) * 0.15;
 
             if (stepBobTime > 0) { stepBobTime -= 0.05; stepBobY = Math.sin(stepBobTime * Math.PI * 4) * 6; } else stepBobY = 0;
