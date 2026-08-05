@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Night Hunt & Exploration Engine</title>
+    <title>Midnight X: Aggressive Boss Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -220,7 +220,7 @@
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
         <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑↓ (Move) | ←→ (Lane) &nbsp; 
-        <span class="text-violet-400 font-bold">Fight:</span> Z (Tap 20 STM / Hold 50 STM) | Space (Precision Parry)
+        <span class="text-violet-400 font-bold">Fight:</span> Z (Tap 20 STM / Hold 50 STM) | Space (0.10s Precision Parry)
     </div>
 
     <script>
@@ -246,6 +246,7 @@
 
         let isCursed = false;
         let damageBuff = 0;
+        let parryDamageBuff = 0; 
         let cluesGathered = [];
         let equippedSubweapon = 'TALISMAN';
 
@@ -274,8 +275,8 @@
         let cryptid = {
             lane: 1, displayLane: 1, depthZ: 4,
             hp: 300, maxHp: 300, attackTimer: 0, moveTimer: 0,
-            telegraphedLanes: [], attackSpeed: 130, showParryIndicator: false,
-            isStunned: false, stunTimer: 0, damageBase: 22
+            telegraphedLanes: [], attackSpeed: 130, moveSpeed: 80, 
+            showParryIndicator: false, isStunned: false, stunTimer: 0, damageBase: 22
         };
 
         // --- ENTITY PLACEMENT MAPS ---
@@ -438,37 +439,43 @@
                 nameEl.textContent = "Anya (Popular Group)";
                 bodyEl.textContent = `"Xio! Be real with me... do you actually think I need to study for Chemistry, or am I naturally gifted enough to pass without trying?"`;
                 choices.innerHTML = `
-                    <button onclick="resolveDialogue('LIE')" class="p-2.5 bg-rose-950/90 hover:bg-rose-900 border border-rose-500 rounded-xl text-left transition"><div class="font-black text-rose-300 text-xs">A) TELL THE LIE (+20m)</div></button>
-                    <button onclick="resolveDialogue('TRUTH')" class="p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl text-left transition"><div class="font-black text-zinc-300 text-xs">B) TELL THE TRUTH (+20m)</div></button>
+                    <button onclick="resolveDialogue('ANYA_LIE')" class="p-2.5 bg-rose-950/90 hover:bg-rose-900 border border-rose-500 rounded-xl text-left transition"><div class="font-black text-rose-300 text-xs">A) TELL THE LIE (+20m)</div></button>
+                    <button onclick="resolveDialogue('ANYA_TRUTH')" class="p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl text-left transition"><div class="font-black text-zinc-300 text-xs">B) TELL THE TRUTH (+20m)</div></button>
                 `;
             } else if (npcKey === 'BEATRIX') {
                 avatar.textContent = "B"; avatar.style.backgroundColor = npcs.beatrix.color;
                 nameEl.textContent = "Beatrix (Occult Club)";
-                bodyEl.textContent = `"Did you hear? Timing your parries perfectly counters for 2x damage!"`;
-                choices.innerHTML = `<button onclick="closeDialogue()" class="p-2.5 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-xl text-xs">THANK BEATRIX</button>`;
+                bodyEl.textContent = `"Take this Occult Charm. It allows your precise parries to reflect dark energy back at the Cryptid, causing damage!"`;
+                choices.innerHTML = `<button onclick="resolveDialogue('BEATRIX')" class="p-2.5 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-xl text-xs">TAKE OCCULT CHARM</button>`;
             } else if (npcKey === 'MINA') {
                 avatar.textContent = "M"; avatar.style.backgroundColor = npcs.mina.color;
                 nameEl.textContent = "Mina (Track Star)";
-                bodyEl.textContent = `"I'll lend you my agility charm—Heavy Thrusts now deal bonus speed damage!"`;
-                damageBuff += 10;
-                choices.innerHTML = `<button onclick="closeDialogue()" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-xl text-xs">TAKE CHARM</button>`;
+                bodyEl.textContent = `"I'll lend you my agility charm—all your attacks now deal bonus damage!"`;
+                choices.innerHTML = `<button onclick="resolveDialogue('MINA')" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-xl text-xs">TAKE CHARM</button>`;
             }
         }
+        
         window.resolveDialogue = function(type) {
             document.getElementById('dialogue-modal').classList.add('hidden');
-            if (type === 'LIE') { isCursed = true; damageBuff += 15; document.getElementById('curse-tag').classList.remove('hidden'); } 
-            else { isCursed = false; }
+            document.getElementById('dialogue-modal').classList.remove('flex');
+
+            if (type === 'ANYA_LIE') {
+                isCursed = true; damageBuff += 15; document.getElementById('curse-tag').classList.remove('hidden');
+            } else if (type === 'ANYA_TRUTH') {
+                isCursed = false;
+            } else if (type === 'BEATRIX') {
+                parryDamageBuff = 25; 
+                cluesGathered.push("OCCULT CHARM: Parries deal damage");
+            } else if (type === 'MINA') {
+                damageBuff += 10;
+                cluesGathered.push("MINA'S CHARM: +10 Weapon Damage");
+            }
             mode = 'EXPLORE_DAY';
-        };
-        window.closeDialogue = function() {
-            document.getElementById('dialogue-modal').classList.add('hidden'); mode = 'EXPLORE_DAY';
         };
 
         // --- NIGHT TRANSITION ---
         function startNightTransition() {
             mode = 'TRANSITION';
-            
-            // Instantly hide the Daytime action bar (and Time Skip button) for the entire night!
             document.getElementById('daytime-btn-group').classList.add('hidden');
             document.getElementById('daytime-btn-group').classList.remove('flex');
             
@@ -498,23 +505,30 @@
             activeCombatKey = enemyKey;
             let enemyData = nightEnemies[enemyKey];
 
-            player.stamina = 100; // Refresh stamina for fight, but NOT health!
+            player.stamina = 100; 
             cryptid.lane = 1; cryptid.displayLane = 1;
             cryptid.attackTimer = 0; cryptid.moveTimer = 0;
             cryptid.telegraphedLanes = []; cryptid.isStunned = false; cryptid.stunTimer = 0;
 
+            let speedMod = isCursed ? 20 : 0; // The Anya Curse makes enemies 20 frames FASTER!
+
             if (enemyData.type === 'BOSS') {
-                cryptid.maxHp = 300; cryptid.hp = 300; cryptid.attackSpeed = 130; cryptid.damageBase = 25;
+                // THE ANOMALY: Highly Aggressive!
+                cryptid.maxHp = 300; cryptid.hp = 300; 
+                cryptid.attackSpeed = 95 - speedMod; // Fast! Every 1.5 seconds (or 1.25s if cursed)
+                cryptid.moveSpeed = 45; // Shifts lanes frequently!
+                cryptid.damageBase = 25;
             } else {
-                cryptid.maxHp = 80; cryptid.hp = 80; cryptid.attackSpeed = 160; cryptid.damageBase = 15;
+                // MINIONS: Standard Pace
+                cryptid.maxHp = 80; cryptid.hp = 80; 
+                cryptid.attackSpeed = 160 - speedMod; 
+                cryptid.moveSpeed = 85; 
+                cryptid.damageBase = 15;
             }
 
             document.getElementById('turn-badge').classList.remove('hidden');
-            // Hide daytime buttons just in case
             document.getElementById('daytime-btn-group').classList.add('hidden');
             document.getElementById('daytime-btn-group').classList.remove('flex');
-            
-            // Show combat buttons
             document.getElementById('combat-btn-group').classList.remove('hidden');
             document.getElementById('combat-btn-group').classList.add('grid');
             
@@ -537,11 +551,9 @@
                 if (enemyData.type === 'BOSS') {
                     endNightPhase('VICTORY');
                 } else {
-                    // Minion defeated, return to night exploration
                     mode = 'EXPLORE_NIGHT';
                     document.getElementById('turn-badge').classList.add('hidden');
-                    
-                    advanceTime(20); // Takes 20 minutes to clear a minion
+                    advanceTime(20); 
                     addFloatingText(`ENTITY DISPELLED! (+20m)`, W / 2, H / 2, '#34d399');
                 }
             }
@@ -655,7 +667,7 @@
                 player.isHoldingAttack = false; player.attackHoldTimer = 0;
             } else {
                 player.isHoldingAttack = false; player.attackHoldTimer = 0;
-                if (player.stamina < 20) { addFloatingText(`NEED 20 STM FOR LIGHT!`, W/2, H/2 - 30, '#ef4444'); return; }
+                if (player.stamina < 20) { addFloatingText(`NO STAMINA!`, W/2, H/2 - 30, '#ef4444'); return; }
                 player.stamina -= 20;
 
                 if (currentLane === cryptid.lane) {
@@ -673,18 +685,28 @@
             if (player.stamina < 20) { addFloatingText(`NEED 20 STM TO PARRY!`, W/2, H - 90, '#ef4444'); return; }
 
             if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(currentLane)) {
-                player.isParrying = true; player.parryWindow = 30;
-                const counterDmg = 25 * (currentLane === 1 ? 2.0 : 1.0);
-                cryptid.hp = Math.max(0, cryptid.hp - counterDmg);
+                // EXTREMELY TIGHT PARRY WINDOW: 6 FRAMES (0.10 SECONDS)
+                player.isParrying = true; player.parryWindow = 6; 
+                
+                const counterDmg = parryDamageBuff * (currentLane === 1 ? 2.0 : 1.0);
+                if (counterDmg > 0) {
+                    cryptid.hp = Math.max(0, cryptid.hp - counterDmg);
+                }
+                
                 screenShake = 12;
 
-                cryptid.isStunned = true; cryptid.stunTimer = 180;
+                cryptid.isStunned = true; 
+                cryptid.stunTimer = 120; // 2 SECOND STUN! (120 frames)
                 cryptid.attackTimer = 0; cryptid.telegraphedLanes = []; cryptid.showParryIndicator = false;
 
-                addFloatingText(`★ PARRY! ENEMY STUNNED! -${counterDmg}`, W / 2, H - 110, '#fef08a');
+                if (counterDmg > 0) {
+                    addFloatingText(`★ PARRY! ENEMY STUNNED! -${counterDmg}`, W / 2, H - 110, '#fef08a');
+                } else {
+                    addFloatingText(`★ PARRY! ENEMY STUNNED!`, W / 2, H - 110, '#fef08a');
+                }
                 checkCombatEnd();
             } else {
-                player.stamina = 0; // DRAIN PENALTY
+                player.stamina = 0; // TOTAL DRAIN PENALTY
                 addFloatingText(`MISSED PARRY! STAMINA DRAINED!`, W / 2, H - 90, '#ef4444');
             }
         }
@@ -823,8 +845,9 @@
                         addFloatingText(`ENEMY RECOVERED!`, W / 2, H / 2 - 30, '#ef4444');
                     }
                 } else {
+                    // DYNAMIC AGGRESSIVE MOVEMENT
                     cryptid.moveTimer++;
-                    if (cryptid.moveTimer > 80 && cryptid.telegraphedLanes.length === 0) {
+                    if (cryptid.moveTimer > cryptid.moveSpeed && cryptid.telegraphedLanes.length === 0) {
                         cryptid.moveTimer = 0;
                         if (Math.random() < 0.65) {
                             if (cryptid.lane < currentLane) cryptid.lane++; else if (cryptid.lane > currentLane) cryptid.lane--;
@@ -834,6 +857,8 @@
                     }
 
                     cryptid.attackTimer++;
+                    
+                    // Telegraph Phase
                     if (cryptid.attackTimer > cryptid.attackSpeed - 40 && cryptid.telegraphedLanes.length === 0) {
                         if (Math.random() < 0.5) cryptid.telegraphedLanes = [cryptid.lane];
                         else {
@@ -842,7 +867,8 @@
                         }
                     }
 
-                    cryptid.showParryIndicator = cryptid.attackTimer > cryptid.attackSpeed - 30 && cryptid.telegraphedLanes.length > 0;
+                    // 0.10s (6 Frames) TIGHT Red Circle Parry Indicator Window Cue
+                    cryptid.showParryIndicator = cryptid.attackTimer > cryptid.attackSpeed - 6 && cryptid.telegraphedLanes.length > 0;
 
                     if (cryptid.attackTimer >= cryptid.attackSpeed) {
                         if (cryptid.telegraphedLanes.includes(currentLane)) {
@@ -1002,7 +1028,7 @@
 
                 ctx.beginPath(); ctx.moveTo(lx1, vpY + 20); ctx.lineTo(lx2, vpY + 20); ctx.lineTo(rx2, H); ctx.lineTo(rx1, H); ctx.fill(); ctx.stroke();
 
-                // RED CIRCLE PARRY INDICATOR CUE
+                // RED CIRCLE PARRY INDICATOR CUE (AT Y = vpY + 105)
                 if (isTelegraphed && cryptid.showParryIndicator && isPlayerLane) {
                     const cueY = vpY + 105; const t = (cueY - (vpY + 20)) / (H - (vpY + 20));
                     const cueX = (lx1 + (rx1 - lx1) * t + lx2 + (rx2 - lx2) * t) / 2;
@@ -1017,6 +1043,7 @@
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
             const cryptidY = vpY + 45;
 
+            // Make Boss look slightly different (larger/redder) than Minions
             let isBoss = nightEnemies[activeCombatKey] && nightEnemies[activeCombatKey].type === 'BOSS';
 
             ctx.fillStyle = cryptid.isStunned ? '#fef08a' : (isBoss ? '#450a0a' : '#09090b');
