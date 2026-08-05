@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Backstep & 180 Turn Engine</title>
+    <title>Midnight X: Time-Locked Exploration Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -11,6 +11,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #050507;
             color: #f4f4f5;
+            /* Prevents the mobile browser from scrolling when swiping in game */
             touch-action: none; 
             user-select: none;
             -webkit-user-select: none;
@@ -99,7 +100,7 @@
         <div class="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-11/12 text-center">
             <div id="gesture-cue" class="bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/40 text-[8px] font-bold text-emerald-400 tracking-wider uppercase shadow-lg inline-flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>Swipe ↑↓ (Move) | ←→ (Shift Lane)</span>
+                <span>Swipe ↑ (Move) | Swipe ↓ (Turn 180°) | ←→ (Lane)</span>
             </div>
         </div>
 
@@ -294,7 +295,7 @@
 
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
-        <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑↓ (Move) | ←→ (Lane) | ↺ Btn (Turn) <br>
+        <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑ (Forward) | Swipe ↓ (Turn 180°) | ←→ (Lane) <br>
         <span class="text-violet-400 font-bold">Fight:</span> Z (Tap 20 STM / Hold 50 STM) | Space (0.10s Precision Parry)
     </div>
 
@@ -1027,6 +1028,9 @@
 
             displayDepthZ += (depthZ - displayDepthZ) * 0.15;
             displayLane += (currentLane - displayLane) * 0.2;
+            
+            // Fix boss vertical offset so it doesn't cover parry circles
+            const bossBaseY = 15; 
             cryptid.displayLane += (cryptid.lane - cryptid.displayLane) * 0.15;
 
             if (stepBobTime > 0) { stepBobTime -= 0.05; stepBobY = Math.sin(stepBobTime * Math.PI * 4) * 6; } else stepBobY = 0;
@@ -1204,7 +1208,7 @@
                 ctx.beginPath(); ctx.moveTo(W, interY1); ctx.lineTo(vpX + 45, interY1 + 10); ctx.lineTo(vpX + 45, interY2); ctx.lineTo(W, interY2 + 20); ctx.closePath(); ctx.fill(); ctx.stroke();
             }
 
-            // ACTIVE LANE GLOW (RESTORED!)
+            // ACTIVE LANE GLOW
             const activeLaneLx1 = vpX + (displayLane - 1.5) * 30;
             const activeLaneLx2 = vpX + (displayLane - 0.5) * 30;
             const activeLaneRx1 = W * 0.50 + (displayLane - 1.5) * 110;
@@ -1276,8 +1280,9 @@
                 }
             }
 
+            // ENEMY RENDER (RAISED UP SO THEY DONT HIDE PARRY CIRCLES!)
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
-            const cryptidY = vpY + 45;
+            const cryptidY = vpY + 15; // WAS 45, MOVED UP TO 15
             let isBoss = nightEnemies[activeCombatKey] && nightEnemies[activeCombatKey].type === 'BOSS';
 
             ctx.fillStyle = cryptid.isStunned ? '#fef08a' : (isBoss ? '#450a0a' : '#09090b');
