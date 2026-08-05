@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Navigation & Menu Lock Engine</title>
+    <title>Midnight X: Backstep & 180 Turn Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -147,21 +147,6 @@
             </div>
         </div>
 
-        <!-- DIALOGUE MODAL -->
-        <div id="dialogue-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-end p-4">
-            <div class="bg-zinc-900 border-2 border-violet-600/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
-                <div class="flex items-center gap-2 border-b border-zinc-800 pb-2">
-                    <div id="npc-avatar" class="w-8 h-8 rounded-full bg-pink-600 border-2 border-white flex items-center justify-center font-black text-xs text-white">A</div>
-                    <div>
-                        <h3 id="dialogue-npc-name" class="font-black text-pink-400 text-xs">NPC</h3>
-                        <p id="dialogue-npc-sub" class="text-[9px] text-zinc-400">Right Lane (+20m Time)</p>
-                    </div>
-                </div>
-                <p id="dialogue-body-text" class="text-xs text-zinc-200 leading-relaxed"></p>
-                <div id="dialogue-choices" class="flex flex-col gap-2 pt-1"></div>
-            </div>
-        </div>
-
         <!-- MAP SELECTION MODAL -->
         <div id="map-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
             <div class="bg-zinc-900 border-2 border-indigo-500/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full text-center">
@@ -246,6 +231,21 @@
             </div>
         </div>
 
+        <!-- DIALOGUE MODAL -->
+        <div id="dialogue-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-end p-4">
+            <div class="bg-zinc-900 border-2 border-violet-600/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
+                <div class="flex items-center gap-2 border-b border-zinc-800 pb-2">
+                    <div id="npc-avatar" class="w-8 h-8 rounded-full bg-pink-600 border-2 border-white flex items-center justify-center font-black text-xs text-white">A</div>
+                    <div>
+                        <h3 id="dialogue-npc-name" class="font-black text-pink-400 text-xs">NPC</h3>
+                        <p id="dialogue-npc-sub" class="text-[9px] text-zinc-400">Right Lane (+20m Time)</p>
+                    </div>
+                </div>
+                <p id="dialogue-body-text" class="text-xs text-zinc-200 leading-relaxed"></p>
+                <div id="dialogue-choices" class="flex flex-col gap-2 pt-1"></div>
+            </div>
+        </div>
+
         <!-- RESULTS MODAL -->
         <div id="results-modal" class="absolute inset-0 z-50 bg-black/95 hidden flex-col items-center justify-center p-6 text-center">
             <h2 id="res-title" class="text-2xl font-black text-violet-400 title-font mb-1">HUNT CONCLUDED</h2>
@@ -259,14 +259,20 @@
         <!-- ACTION CONTROLS -->
         <div id="touch-controls" class="absolute bottom-3 left-3 right-3 z-20 pointer-events-none opacity-90">
             <!-- Daytime Exploration Bar -->
-            <div id="daytime-btn-group" class="flex justify-end pointer-events-auto transition-all">
+            <div id="daytime-btn-group" class="flex justify-between pointer-events-auto transition-all">
+                <button onclick="turn180()" class="px-4 py-2.5 bg-zinc-800/90 active:bg-zinc-700 hover:bg-zinc-700 text-white rounded-xl font-black text-xs border border-zinc-500 shadow-lg shadow-black/60 backdrop-blur-md">
+                    ↺ 180° TURN
+                </button>
                 <button id="time-skip-btn" class="px-4 py-2.5 bg-violet-600/90 active:bg-violet-500 hover:bg-violet-500 text-white rounded-xl font-black text-xs border border-violet-400 flex items-center gap-1.5 shadow-lg shadow-violet-950/60 backdrop-blur-md">
-                    <span>⏩ TIME SKIP (+30m)</span>
+                    <span>⏩ SKIP (+30m)</span>
                 </button>
             </div>
 
             <!-- Night Exploration Bar (INVENTORY) -->
-            <div id="night-explore-btn-group" class="hidden justify-end pointer-events-auto transition-all">
+            <div id="night-explore-btn-group" class="hidden justify-between pointer-events-auto transition-all">
+                <button onclick="turn180()" class="px-4 py-2.5 bg-zinc-800/90 active:bg-zinc-700 hover:bg-zinc-700 text-white rounded-xl font-black text-xs border border-zinc-500 shadow-lg shadow-black/60 backdrop-blur-md">
+                    ↺ 180° TURN
+                </button>
                 <button onclick="openInventory()" class="px-4 py-2.5 bg-indigo-600/90 active:bg-indigo-500 hover:bg-indigo-500 text-white rounded-xl font-black text-xs border border-indigo-400 flex items-center gap-1.5 shadow-lg shadow-indigo-950/60 backdrop-blur-md">
                     <span>🎒 INVENTORY</span>
                 </button>
@@ -288,7 +294,7 @@
 
     <!-- PC INSTRUCTIONS BANNER -->
     <div class="mt-2 text-center text-[11px] text-zinc-500 font-medium">
-        <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑↓ (Move) | ←→ (Lane) &nbsp; 
+        <span class="text-emerald-400 font-bold">Nav:</span> Swipe ↑↓ (Move) | ←→ (Lane) | ↺ Btn (Turn) <br>
         <span class="text-violet-400 font-bold">Fight:</span> Z (Tap 20 STM / Hold 50 STM) | Space (0.10s Precision Parry)
     </div>
 
@@ -307,7 +313,7 @@
         xioImage.src = 'image.png';
 
         // --- ENGINE STATES & ECONOMY ---
-        let mode = 'EXPLORE_DAY'; // EXPLORE_DAY, MAP_SELECT, SHOP, EXPLORE_NIGHT, COMBAT, DIALOGUE...
+        let mode = 'EXPLORE_DAY'; // EXPLORE_DAY, MAP_SELECT, SHOP, EXPLORE_NIGHT, COMBAT, DIALOGUE, INVENTORY...
         let dayOfWeek = 'MON';
         let hour = 9;
         let minute = 0;
@@ -503,7 +509,8 @@
         // --- INVENTORY MODAL (NIGHT EXPLORATION) ---
         window.openInventory = function() {
             if (mode !== 'EXPLORE_NIGHT') return;
-            mode = 'INVENTORY'; // Locks movement!
+            mode = 'INVENTORY'; // STOPS TIME & MOVEMENT
+            
             document.getElementById('inv-potions').textContent = inventory.potions;
             document.getElementById('inv-enhancers').textContent = inventory.enhancers;
             
@@ -515,7 +522,7 @@
         };
 
         window.closeInventory = function() {
-            mode = 'EXPLORE_NIGHT'; // Unlocks movement!
+            mode = 'EXPLORE_NIGHT'; // RESTORES MOVEMENT
             document.getElementById('inventory-modal').classList.add('hidden');
             document.getElementById('inventory-modal').classList.remove('flex');
             
@@ -544,7 +551,7 @@
         // --- MODAL TRIGGERS (DAY) ---
         function openClassroomSelection() {
             if (mode === 'EXPLORE_NIGHT') return;
-            mode = 'CLASS_SELECT'; // Locks movement
+            mode = 'CLASS_SELECT';
             document.getElementById('class-modal').classList.remove('hidden');
             document.getElementById('class-modal').classList.add('flex');
             document.getElementById('class-title').textContent = `PERIOD ${period}: SELECT CLASSROOM`;
@@ -561,7 +568,7 @@
         };
 
         function triggerLunchModal() {
-            mode = 'LUNCH_PROMPT'; // Locks movement
+            mode = 'LUNCH_PROMPT';
             randomizeLocations(npcs, false);
             document.getElementById('lunch-modal').classList.remove('hidden');
             document.getElementById('lunch-modal').classList.add('flex');
@@ -574,7 +581,7 @@
 
         // --- NPC DIALOGUE SYSTEM ---
         function triggerNPCDialogue(npcKey) {
-            mode = 'DIALOGUE'; // Locks movement
+            mode = 'DIALOGUE';
             advanceTime(20);
             npcs.anya.present = false; npcs.beatrix.present = false; npcs.mina.present = false;
 
@@ -784,7 +791,7 @@
             updateClockDisplay();
         };
 
-        // --- SWIPE GESTURE DETECTION (WITH MENU LOCKS) ---
+        // --- SWIPE GESTURE DETECTION (MENU LOCKED) ---
         let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
         const SWIPE_THRESHOLD = 20;
         const gameApp = document.getElementById('game-app');
@@ -815,7 +822,7 @@
         });
 
         function processSwipeGesture() {
-            // STRICT MENU LOCK: Only allow swipes during pure exploration or combat
+            // STRICT MENU LOCK
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT' && mode !== 'COMBAT') return;
 
             const deltaX = touchEndX - touchStartX;
@@ -827,11 +834,34 @@
                 if (deltaX > SWIPE_THRESHOLD) shiftLane(1);
                 else if (deltaX < -SWIPE_THRESHOLD) shiftLane(-1);
             } else {
-                if (mode === 'COMBAT') return; // NO moving forward/backward in combat!
+                if (mode === 'COMBAT') return; 
                 if (deltaY < -SWIPE_THRESHOLD) moveDepth(1);
-                else if (deltaY > SWIPE_THRESHOLD) moveDepth(-1);
+                else if (deltaY > SWIPE_THRESHOLD) moveDepth(-1); // BACKTRACK SWIPE
             }
         }
+
+        // --- 180 DEGREE TURN LOGIC ---
+        window.turn180 = function() {
+            if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
+            
+            // Re-entering from opposite side
+            depthZ = 0; 
+            
+            let idx = corridorCycle.indexOf(hallName); 
+            if (idx === -1) idx = 0;
+            
+            // Go to opposite hallway in the 4-loop map
+            idx = (idx + 2) % corridorCycle.length; 
+            
+            hallName = corridorCycle[idx]; 
+            updateClockDisplay();
+            
+            // Hide intersection UI if it was open
+            document.getElementById('intersection-ui').classList.add('hidden'); 
+            document.getElementById('intersection-ui').classList.remove('flex');
+            
+            addFloatingText(`TURNED 180°`, W/2, H/2, '#c084fc');
+        };
 
         // --- COMBAT ACTIONS ---
         function startAttackCharge() {
@@ -916,12 +946,13 @@
 
         window.addEventListener('keydown', (e) => {
             if (keys[e.code]) return; keys[e.code] = true;
-            // STRICT MENU LOCK FOR KEYBOARD TOO
+            
+            // STRICT MENU LOCK FOR KEYBOARD
             if (mode === 'EXPLORE_DAY' || mode === 'EXPLORE_NIGHT') {
                 if (e.code === 'KeyA' || e.code === 'ArrowLeft') shiftLane(-1);
                 if (e.code === 'KeyD' || e.code === 'ArrowRight') shiftLane(1);
                 if (e.code === 'KeyW' || e.code === 'ArrowUp') moveDepth(1);
-                if (e.code === 'KeyS' || e.code === 'ArrowDown') moveDepth(-1);
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') moveDepth(-1); // BACKTRACK
             } else if (mode === 'COMBAT') {
                 if (e.code === 'KeyA' || e.code === 'ArrowLeft') shiftLane(-1);
                 if (e.code === 'KeyD' || e.code === 'ArrowRight') shiftLane(1);
@@ -933,7 +964,6 @@
 
         // --- NAVIGATION LOGIC ---
         function shiftLane(dir) {
-            // Additional safety lock
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT' && mode !== 'COMBAT') return;
             if (mode === 'COMBAT' && player.isHoldingAttack) { addFloatingText(`LOCKED IN HEAVY!`, W/2, H - 110, '#f59e0b'); return; }
             
@@ -943,7 +973,6 @@
         }
 
         function moveDepth(dz) {
-            // Additional safety lock
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
 
             const prevZ = depthZ;
@@ -952,8 +981,12 @@
             if (prevZ !== depthZ) {
                 stepBobTime = 1.0;
                 advanceTime(5); // +5 Minutes per step!
-                if (dz > 0) addFloatingText(`FORWARD (+5m)`, W/2, H - 140, '#4ade80');
-                else addFloatingText(`BACK (+5m)`, W/2, H - 140, '#38bdf8');
+                
+                if (dz > 0) {
+                    addFloatingText(`FORWARD (+5m)`, W/2, H - 140, '#4ade80');
+                } else {
+                    addFloatingText(`BACKSTEP (+5m)`, W/2, H - 140, '#38bdf8');
+                }
             }
 
             if (depthZ === 4) {
@@ -1119,7 +1152,6 @@
                 render3LaneCombat();
             }
 
-            // Don't render Xio if she's transitioning or if she's looking at a menu (unless it's just the inventory over the map)
             if (mode !== 'TRANSITION') {
                 renderOverTheShoulderXio();
             }
@@ -1178,16 +1210,11 @@
             const activeLaneRx1 = W * 0.50 + (displayLane - 1.5) * 110;
             const activeLaneRx2 = W * 0.50 + (displayLane - 0.5) * 110;
 
-            // Subtle white overlay indicating the lane Xio is currently in
             ctx.fillStyle = mode.includes('NIGHT') || mode === 'INVENTORY' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.12)';
             ctx.beginPath();
-            ctx.moveTo(activeLaneLx1, vpY);
-            ctx.lineTo(activeLaneLx2, vpY);
-            ctx.lineTo(activeLaneRx2, H);
-            ctx.lineTo(activeLaneRx1, H);
+            ctx.moveTo(activeLaneLx1, vpY); ctx.lineTo(activeLaneLx2, vpY); ctx.lineTo(activeLaneRx2, H); ctx.lineTo(activeLaneRx1, H);
             ctx.fill();
 
-            // Render Entities depending on Day or Night
             if (mode === 'EXPLORE_DAY') {
                 for (let key in npcs) {
                     let npc = npcs[key];
@@ -1239,7 +1266,6 @@
 
                 ctx.beginPath(); ctx.moveTo(lx1, vpY + 20); ctx.lineTo(lx2, vpY + 20); ctx.lineTo(rx2, H); ctx.lineTo(rx1, H); ctx.fill(); ctx.stroke();
 
-                // RED CIRCLE PARRY INDICATOR CUE (AT Y = vpY + 105)
                 if (isTelegraphed && cryptid.showParryIndicator && isPlayerLane) {
                     const cueY = vpY + 105; const t = (cueY - (vpY + 20)) / (H - (vpY + 20));
                     const cueX = (lx1 + (rx1 - lx1) * t + lx2 + (rx2 - lx2) * t) / 2;
@@ -1250,10 +1276,8 @@
                 }
             }
 
-            // ENEMY RENDER
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
             const cryptidY = vpY + 45;
-
             let isBoss = nightEnemies[activeCombatKey] && nightEnemies[activeCombatKey].type === 'BOSS';
 
             ctx.fillStyle = cryptid.isStunned ? '#fef08a' : (isBoss ? '#450a0a' : '#09090b');
@@ -1273,7 +1297,7 @@
             ctx.fillRect(cryptidX - 28, cryptidY - 70, (Math.max(0, cryptid.hp) / cryptid.maxHp) * 56, 5);
         }
 
-        // 3. RENDER CUSTOM IMAGE ASSET: OVER-THE-SHOULDER XIOMARA
+        // 3. RENDER CUSTOM IMAGE ASSET
         function renderOverTheShoulderXio() {
             let targetBaseX = 180 + (displayLane - 1) * 110;
             ctx.save(); ctx.translate(targetBaseX, stepBobY);
@@ -1294,7 +1318,6 @@
             ctx.restore();
         }
 
-        // 4. Glitch Effect
         function renderTransitionGlitch() {
             ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H);
             ctx.fillStyle = '#a855f7'; ctx.font = '900 16px Cinzel, serif'; ctx.fillText("PARANORMAL ANOMALY...", W / 2 - 110, H / 2);
