@@ -314,7 +314,7 @@
         xioImage.src = 'image.png';
 
         // --- ENGINE STATES & ECONOMY ---
-        let mode = 'EXPLORE_DAY'; // EXPLORE_DAY, MAP_SELECT, SHOP, EXPLORE_NIGHT, COMBAT, DIALOGUE, INVENTORY...
+        let mode = 'EXPLORE_DAY'; 
         let dayOfWeek = 'MON';
         let hour = 9;
         let minute = 0;
@@ -401,9 +401,9 @@
                     lane = Math.floor(Math.random() * 3);
                     
                     if (isNight && ent.type === 'BOSS') {
-                        depth = 6 + Math.floor(Math.random() * 2); // Depth 6 or 7
+                        depth = 6 + Math.floor(Math.random() * 2); 
                     } else {
-                        depth = 2 + Math.floor(Math.random() * 4); // Depths 2-5
+                        depth = 2 + Math.floor(Math.random() * 4); 
                     }
                     
                     spotKey = `${lane}_${depth}_${availableHalls[i % availableHalls.length]}`;
@@ -510,7 +510,7 @@
         // --- INVENTORY MODAL (NIGHT EXPLORATION) ---
         window.openInventory = function() {
             if (mode !== 'EXPLORE_NIGHT') return;
-            mode = 'INVENTORY'; // STOPS TIME & MOVEMENT
+            mode = 'INVENTORY'; 
             
             document.getElementById('inv-potions').textContent = inventory.potions;
             document.getElementById('inv-enhancers').textContent = inventory.enhancers;
@@ -523,7 +523,7 @@
         };
 
         window.closeInventory = function() {
-            mode = 'EXPLORE_NIGHT'; // RESTORES MOVEMENT
+            mode = 'EXPLORE_NIGHT'; 
             document.getElementById('inventory-modal').classList.add('hidden');
             document.getElementById('inventory-modal').classList.remove('flex');
             
@@ -823,7 +823,6 @@
         });
 
         function processSwipeGesture() {
-            // STRICT MENU LOCK
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT' && mode !== 'COMBAT') return;
 
             const deltaX = touchEndX - touchStartX;
@@ -845,19 +844,14 @@
         window.turn180 = function() {
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
             
-            // Re-entering from opposite side
             depthZ = 0; 
-            
             let idx = corridorCycle.indexOf(hallName); 
             if (idx === -1) idx = 0;
-            
-            // Go to opposite hallway in the 4-loop map
             idx = (idx + 2) % corridorCycle.length; 
             
             hallName = corridorCycle[idx]; 
             updateClockDisplay();
             
-            // Hide intersection UI if it was open
             document.getElementById('intersection-ui').classList.add('hidden'); 
             document.getElementById('intersection-ui').classList.remove('flex');
             
@@ -910,7 +904,6 @@
             if (player.stamina < 20) { addFloatingText(`NEED 20 STM TO PARRY!`, W/2, H - 90, '#ef4444'); return; }
 
             if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(currentLane)) {
-                // EXTREMELY TIGHT PARRY WINDOW: 6 FRAMES (0.10 SECONDS)
                 player.isParrying = true; player.parryWindow = 6; 
                 
                 const counterDmg = parryDamageBuff * (currentLane === 1 ? 2.0 : 1.0);
@@ -921,7 +914,7 @@
                 screenShake = 12;
 
                 cryptid.isStunned = true; 
-                cryptid.stunTimer = 120; // 2 SECOND STUN! (120 frames)
+                cryptid.stunTimer = 120; 
                 cryptid.attackTimer = 0; cryptid.telegraphedLanes = []; cryptid.showParryIndicator = false;
 
                 if (counterDmg > 0) {
@@ -931,7 +924,7 @@
                 }
                 checkCombatEnd();
             } else {
-                player.stamina = 0; // TOTAL DRAIN PENALTY
+                player.stamina = 0; 
                 addFloatingText(`MISSED PARRY! STAMINA DRAINED!`, W / 2, H - 90, '#ef4444');
             }
         }
@@ -948,12 +941,11 @@
         window.addEventListener('keydown', (e) => {
             if (keys[e.code]) return; keys[e.code] = true;
             
-            // STRICT MENU LOCK FOR KEYBOARD
             if (mode === 'EXPLORE_DAY' || mode === 'EXPLORE_NIGHT') {
                 if (e.code === 'KeyA' || e.code === 'ArrowLeft') shiftLane(-1);
                 if (e.code === 'KeyD' || e.code === 'ArrowRight') shiftLane(1);
                 if (e.code === 'KeyW' || e.code === 'ArrowUp') moveDepth(1);
-                if (e.code === 'KeyS' || e.code === 'ArrowDown') moveDepth(-1); // BACKTRACK
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') moveDepth(-1); 
             } else if (mode === 'COMBAT') {
                 if (e.code === 'KeyA' || e.code === 'ArrowLeft') shiftLane(-1);
                 if (e.code === 'KeyD' || e.code === 'ArrowRight') shiftLane(1);
@@ -981,7 +973,7 @@
             
             if (prevZ !== depthZ) {
                 stepBobTime = 1.0;
-                advanceTime(5); // +5 Minutes per step!
+                advanceTime(5); 
                 
                 if (dz > 0) {
                     addFloatingText(`FORWARD (+5m)`, W/2, H - 140, '#4ade80');
@@ -1029,7 +1021,6 @@
             displayDepthZ += (depthZ - displayDepthZ) * 0.15;
             displayLane += (currentLane - displayLane) * 0.2;
             
-            // Fix boss vertical offset so it doesn't cover parry circles
             const bossBaseY = 15; 
             cryptid.displayLane += (cryptid.lane - cryptid.displayLane) * 0.15;
 
@@ -1162,11 +1153,41 @@
 
             if (flashAlpha > 0) { ctx.fillStyle = `rgba(168, 85, 247, ${flashAlpha})`; ctx.fillRect(0, 0, W, H); }
 
+            // DRAW FLOATING TEXT
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
                 ctx.fillStyle = ft.color; ctx.font = '900 12px Inter, sans-serif'; ctx.fillText(ft.str, ft.x - 30, ft.y);
                 ft.y -= 0.6; ft.life--;
                 if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+
+            // --- DRAW PARRY INDICATOR EXPLICITLY OVER EVERYTHING (EXCEPT XIO) ---
+            if (mode === 'COMBAT') {
+                for (let l = 0; l < 3; l++) {
+                    if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(l) && currentLane === l) {
+                        const vpX = W * 0.50; const vpY = H * 0.35;
+                        const cueX = vpX + (l - 1) * 35;
+                        const cueY = vpY - 90; // MOVED HIGH ABOVE THE ENEMY HEAD
+
+                        // Glowing Shadow effect
+                        ctx.shadowColor = '#ef4444';
+                        ctx.shadowBlur = 15;
+
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.8)'; 
+                        ctx.strokeStyle = '#ef4444'; 
+                        ctx.lineWidth = 4;
+                        ctx.beginPath(); ctx.arc(cueX, cueY, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                        
+                        ctx.shadowBlur = 0; // Turn off shadow for text
+
+                        ctx.fillStyle = '#fef08a'; 
+                        ctx.beginPath(); ctx.arc(cueX, cueY, 7, 0, Math.PI * 2); ctx.fill();
+                        
+                        ctx.fillStyle = '#ffffff'; 
+                        ctx.font = '900 10px Inter, sans-serif'; 
+                        ctx.fillText("PARRY NOW!", cueX - 30, cueY - 26);
+                    }
+                }
             }
 
             ctx.restore(); requestAnimationFrame(() => { update(); render(); });
@@ -1269,20 +1290,11 @@
                 }
 
                 ctx.beginPath(); ctx.moveTo(lx1, vpY + 20); ctx.lineTo(lx2, vpY + 20); ctx.lineTo(rx2, H); ctx.lineTo(rx1, H); ctx.fill(); ctx.stroke();
-
-                if (isTelegraphed && cryptid.showParryIndicator && isPlayerLane) {
-                    const cueY = vpY + 105; const t = (cueY - (vpY + 20)) / (H - (vpY + 20));
-                    const cueX = (lx1 + (rx1 - lx1) * t + lx2 + (rx2 - lx2) * t) / 2;
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.6)'; ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.arc(cueX, cueY, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                    ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(cueX, cueY, 7, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#ffffff'; ctx.font = '900 8px Inter, sans-serif'; ctx.fillText("PARRY NOW!", cueX - 25, cueY - 24);
-                }
             }
 
-            // ENEMY RENDER (RAISED UP SO THEY DONT HIDE PARRY CIRCLES!)
+            // ENEMY RENDER 
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
-            const cryptidY = vpY + 15; // WAS 45, MOVED UP TO 15
+            const cryptidY = vpY + 15; 
             let isBoss = nightEnemies[activeCombatKey] && nightEnemies[activeCombatKey].type === 'BOSS';
 
             ctx.fillStyle = cryptid.isStunned ? '#fef08a' : (isBoss ? '#450a0a' : '#09090b');
