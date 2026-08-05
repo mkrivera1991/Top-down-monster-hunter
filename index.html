@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: True Perspective Engine</title>
+    <title>Midnight X: Repaired Perspective Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
@@ -11,7 +11,6 @@
             font-family: 'Inter', sans-serif;
             background-color: #050507;
             color: #f4f4f5;
-            /* Prevents the mobile browser from scrolling when swiping in game */
             touch-action: none; 
             user-select: none;
             -webkit-user-select: none;
@@ -22,6 +21,7 @@
         }
         canvas {
             image-rendering: crisp-edges;
+            touch-action: none;
         }
         .scanlines {
             background: linear-gradient(rgba(18, 16, 26, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
@@ -39,7 +39,7 @@
 <body class="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-1 sm:p-4">
 
     <!-- PORTRAIT CONTAINER -->
-    <div id="game-app" class="relative w-full max-w-sm aspect-[9/16] bg-black rounded-3xl overflow-hidden shadow-2xl border-2 border-zinc-800 flex flex-col cursor-grab active:cursor-grabbing">
+    <div id="game-app" class="relative w-full max-w-sm aspect-[9/16] bg-black rounded-3xl overflow-hidden shadow-2xl border-2 border-zinc-800 flex flex-col cursor-grab active:cursor-grabbing" style="touch-action: none;">
         
         <!-- TOP HUD -->
         <div id="hud" class="absolute top-0 left-0 right-0 z-30 p-3 bg-gradient-to-b from-black/90 via-black/60 to-transparent flex flex-col gap-2 pointer-events-none">
@@ -180,6 +180,11 @@
                     <p class="text-[9px] text-zinc-400 mt-1">Time: <span id="shop-time-display" class="text-white font-bold">05:00 PM</span>. Hunt starts at 9:00 PM.<br>Purchasing an item takes 2 hours of prep time.</p>
                 </div>
                 
+                <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 text-[10px] space-y-1 text-zinc-300 mb-2">
+                    <div>Social Buffs Gathered: <strong class="text-amber-400" id="buff-count-text">0</strong></div>
+                    <div>Curse Penalty: <strong id="curse-summary-text" class="text-emerald-400">CLEAN</strong></div>
+                </div>
+
                 <div class="space-y-2">
                     <button onclick="buyItem('POTION')" class="w-full flex justify-between items-center p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl transition">
                         <div class="text-left">
@@ -198,7 +203,7 @@
                     </button>
                 </div>
 
-                <button onclick="startNightTransition()" class="w-full mt-2 py-3 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black rounded-xl text-xs active:scale-95 transition shadow-lg">
+                <button onclick="startNightTransition()" class="w-full mt-3 py-3 bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black rounded-xl text-xs active:scale-95 transition shadow-lg">
                     FINISH PREP & DEPLOY
                 </button>
             </div>
@@ -313,6 +318,9 @@
         xioImage.crossOrigin = "anonymous";
         xioImage.src = 'image.png';
 
+        // --- GLOBAL KEY TRACKER ---
+        const keys = {};
+
         // --- ENGINE STATES & ECONOMY ---
         let mode = 'EXPLORE_DAY'; 
         let dayOfWeek = 'MON';
@@ -324,7 +332,7 @@
         let selectedDifficulty = 'MEDIUM';
         let inventory = { potions: 0, enhancers: 0 };
         
-        let isCursed = false;
+        let curseLevel = 0;
         let damageBuff = 0; 
         let parryDamageBuff = 0; 
         let cluesGathered = [];
@@ -340,7 +348,7 @@
         let stepBobY = 0;
         let leanAngle = 0;
         
-        let isFacingBackwards = false; // TRUE PERSPECTIVE TRACKING!
+        let isFacingBackwards = false; 
 
         // Player Stats
         let player = {
@@ -363,8 +371,8 @@
         // --- ENTITY PLACEMENT MAPS ---
         let npcs = {
             anya: { name: "Anya", present: true, avatar: "A", color: "#ec4899", hall: "", lane: 0, depth: 0 },
-            beatrix: { name: "Beatrix (Occult)", present: true, avatar: "B", color: "#a855f7", hall: "", lane: 0, depth: 0 },
-            mina: { name: "Mina (Track)", present: true, avatar: "M", color: "#38bdf8", hall: "", lane: 0, depth: 0 }
+            beatrix: { name: "Beatrix", present: true, avatar: "B", color: "#a855f7", hall: "", lane: 0, depth: 0 },
+            mina: { name: "Mina", present: true, avatar: "M", color: "#38bdf8", hall: "", lane: 0, depth: 0 }
         };
 
         let nightEnemies = {
@@ -484,6 +492,11 @@
             
             mode = 'SHOP';
             updateMoneyUI();
+            
+            document.getElementById('buff-count-text').textContent = cluesGathered.length;
+            document.getElementById('curse-summary-text').textContent = curseLevel > 0 ? `LV.${curseLevel} (-${curseLevel*15} HP, Aggro++)` : "CLEAN";
+            document.getElementById('curse-summary-text').className = curseLevel > 0 ? "text-rose-400 font-bold" : "text-emerald-400 font-bold";
+            
             document.getElementById('shop-modal').classList.remove('hidden');
             document.getElementById('shop-modal').classList.add('flex');
         };
@@ -586,7 +599,7 @@
         function triggerNPCDialogue(npcKey) {
             mode = 'DIALOGUE';
             advanceTime(20);
-            npcs.anya.present = false; npcs.beatrix.present = false; npcs.mina.present = false;
+            npcs[npcKey.toLowerCase()].present = false; 
 
             document.getElementById('dialogue-modal').classList.remove('hidden');
             document.getElementById('dialogue-modal').classList.add('flex');
@@ -600,37 +613,54 @@
                 nameEl.textContent = "Anya (Popular Group)";
                 bodyEl.textContent = `"Xio! Be real with me... do you actually think I need to study for Chemistry, or am I naturally gifted enough to pass without trying?"`;
                 choices.innerHTML = `
-                    <button onclick="resolveDialogue('ANYA_LIE')" class="p-2.5 bg-rose-950/90 hover:bg-rose-900 border border-rose-500 rounded-xl text-left transition"><div class="font-black text-rose-300 text-xs">A) TELL THE LIE (+20m)</div></button>
-                    <button onclick="resolveDialogue('ANYA_TRUTH')" class="p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl text-left transition"><div class="font-black text-zinc-300 text-xs">B) TELL THE TRUTH (+20m)</div></button>
+                    <button onclick="resolveDialogue('ANYA', true)" class="p-2.5 bg-rose-950/90 hover:bg-rose-900 border border-rose-500 rounded-xl text-left transition"><div class="font-black text-rose-300 text-xs">LIE: "You're a genius, Anya." (+10 DMG)</div></button>
+                    <button onclick="resolveDialogue('ANYA', false)" class="p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl text-left transition"><div class="font-black text-zinc-300 text-xs">TRUTH: "You really need to study." (No Bonus)</div></button>
                 `;
             } else if (npcKey === 'BEATRIX') {
                 avatar.textContent = "B"; avatar.style.backgroundColor = npcs.beatrix.color;
                 nameEl.textContent = "Beatrix (Occult Club)";
-                bodyEl.textContent = `"Take this Occult Charm. It allows your precise parries to reflect dark energy back at the Cryptid, causing damage!"`;
-                choices.innerHTML = `<button onclick="resolveDialogue('BEATRIX')" class="p-2.5 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-xl text-xs">TAKE OCCULT CHARM</button>`;
+                bodyEl.textContent = `"I saw you lurking near the abandoned chapel... You're dabbling in the dark arts to summon spirits too, aren't you?"`;
+                choices.innerHTML = `
+                    <button onclick="resolveDialogue('BEATRIX', true)" class="p-2.5 bg-rose-950/90 hover:bg-rose-900 border border-rose-500 rounded-xl text-left transition"><div class="font-black text-rose-300 text-xs">LIE: "Yes, to summon spirits." (Gain Occult Parry Charm)</div></button>
+                    <button onclick="resolveDialogue('BEATRIX', false)" class="p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl text-left transition"><div class="font-black text-zinc-300 text-xs">TRUTH: "No, hunting anomalies." (No Bonus)</div></button>
+                `;
             } else if (npcKey === 'MINA') {
                 avatar.textContent = "M"; avatar.style.backgroundColor = npcs.mina.color;
                 nameEl.textContent = "Mina (Track Star)";
-                bodyEl.textContent = `"I'll lend you my agility charm—all your attacks now deal bonus damage!"`;
-                choices.innerHTML = `<button onclick="resolveDialogue('MINA')" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-xl text-xs">TAKE CHARM</button>`;
+                bodyEl.textContent = `"Hey Xio... Did you see me at the track meet? I totally crushed that record without even trying, right?" (She actually tripped).`;
+                choices.innerHTML = `
+                    <button onclick="resolveDialogue('MINA', true)" class="p-2.5 bg-rose-950/90 hover:bg-rose-900 border border-rose-500 rounded-xl text-left transition"><div class="font-black text-rose-300 text-xs">LIE: "You were flawless." (Gain Agility Charm)</div></button>
+                    <button onclick="resolveDialogue('MINA', false)" class="p-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-xl text-left transition"><div class="font-black text-zinc-300 text-xs">TRUTH: "You ate dirt at the end." (No Bonus)</div></button>
+                `;
             }
         }
         
-        window.resolveDialogue = function(type) {
+        window.resolveDialogue = function(npcKey, isLie) {
             document.getElementById('dialogue-modal').classList.add('hidden');
             document.getElementById('dialogue-modal').classList.remove('flex');
 
-            if (type === 'ANYA_LIE') {
-                isCursed = true; damageBuff += 15; document.getElementById('curse-tag').classList.remove('hidden');
-            } else if (type === 'ANYA_TRUTH') {
-                isCursed = false;
-            } else if (type === 'BEATRIX') {
-                parryDamageBuff = 25; 
-                cluesGathered.push("OCCULT CHARM: Parries deal damage");
-            } else if (type === 'MINA') {
-                damageBuff += 10;
-                cluesGathered.push("MINA'S CHARM: +10 Weapon Damage");
+            if (isLie) {
+                curseLevel++;
+                document.getElementById('curse-tag').classList.remove('hidden');
+                document.getElementById('curse-tag').textContent = `CURSE LV.${curseLevel} (-${curseLevel * 15} HP)`;
+                
+                if (npcKey === 'ANYA') {
+                    damageBuff += 10;
+                    cluesGathered.push("Anya's Trust: +10 DMG");
+                    addFloatingText(`ANYA TRUSTS YOU! (+10 DMG)`, W/2, H/2, '#ec4899');
+                } else if (npcKey === 'BEATRIX') {
+                    parryDamageBuff += 25;
+                    cluesGathered.push("Occult Charm: Parry Deals DMG");
+                    addFloatingText(`BEATRIX TRUSTS YOU! (PARRY DMG)`, W/2, H/2, '#a855f7');
+                } else if (npcKey === 'MINA') {
+                    damageBuff += 15;
+                    cluesGathered.push("Mina's Charm: +15 DMG");
+                    addFloatingText(`MINA TRUSTS YOU! (+15 DMG)`, W/2, H/2, '#38bdf8');
+                }
+            } else {
+                addFloatingText(`TOLD THE TRUTH.`, W/2, H/2, '#d4d4d8');
             }
+            
             mode = 'EXPLORE_DAY';
         };
 
@@ -647,12 +677,12 @@
                 if (flashes > 12) {
                     clearInterval(timer); flashAlpha = 0;
                     
-                    hour = 21; minute = 0; // Starts at 9:00 PM
+                    hour = 21; minute = 0; 
                     depthZ = 0; currentLane = 1; hallName = "Main Hallway";
                     isFacingBackwards = false;
                     
+                    player.maxHp = Math.max(10, 100 - (curseLevel * 15));
                     player.stamina = 100;
-                    player.maxHp = isCursed ? 80 : 100;
                     player.hp = player.maxHp;
                     
                     randomizeLocations(nightEnemies, true);
@@ -677,20 +707,20 @@
             cryptid.attackTimer = 0; cryptid.moveTimer = 0;
             cryptid.telegraphedLanes = []; cryptid.isStunned = false; cryptid.stunTimer = 0;
 
-            let speedMod = isCursed ? 20 : 0; 
+            let speedMod = curseLevel * 15; 
             
             let hpScale = selectedDifficulty === 'EASY' ? 0.7 : selectedDifficulty === 'MEDIUM' ? 1.0 : 1.5;
             let dmgScale = selectedDifficulty === 'EASY' ? 0.8 : selectedDifficulty === 'MEDIUM' ? 1.0 : 1.3;
 
             if (enemyData.type === 'BOSS') {
                 cryptid.maxHp = 300 * hpScale; cryptid.hp = cryptid.maxHp; 
-                cryptid.attackSpeed = 95 - speedMod; 
-                cryptid.moveSpeed = 45; 
+                cryptid.attackSpeed = Math.max(30, 95 - speedMod); 
+                cryptid.moveSpeed = Math.max(20, 45 - speedMod); 
                 cryptid.damageBase = 25 * dmgScale;
             } else {
                 cryptid.maxHp = 80 * hpScale; cryptid.hp = cryptid.maxHp; 
-                cryptid.attackSpeed = 160 - speedMod; 
-                cryptid.moveSpeed = 85; 
+                cryptid.attackSpeed = Math.max(40, 160 - speedMod); 
+                cryptid.moveSpeed = Math.max(30, 85 - speedMod); 
                 cryptid.damageBase = 15 * dmgScale;
             }
 
@@ -698,7 +728,7 @@
             document.getElementById('night-explore-btn-group').classList.add('hidden');
             document.getElementById('night-explore-btn-group').classList.remove('flex');
             
-            // HIDE INTERSECTION UI IF ENGAGED AT DEPTH 4
+            // HIDE INTERSECTION UI DURING COMBAT
             document.getElementById('intersection-ui').classList.add('hidden');
             document.getElementById('intersection-ui').classList.remove('flex');
             
@@ -785,8 +815,9 @@
 
             damageBuff = 0;
             parryDamageBuff = 0;
-            isCursed = false;
+            curseLevel = 0;
             isFacingBackwards = false;
+            document.getElementById('curse-tag').classList.add('hidden');
 
             document.getElementById('res-stats').innerHTML = `
                 <div class="flex justify-between"><span>Wallet Balance:</span> <strong class="text-emerald-400">$${money}</strong></div>
@@ -798,7 +829,7 @@
         document.getElementById('res-btn').onclick = () => {
             hour = 9; minute = 0; period = 1; depthZ = 0; currentLane = 1; hallName = "Main Hallway";
             mode = 'EXPLORE_DAY';
-            player.hp = 100; player.maxHp = 100; player.stamina = 100;
+            player.maxHp = 100; player.hp = 100; player.stamina = 100;
             isFacingBackwards = false;
             randomizeLocations(npcs, false);
             
@@ -815,20 +846,25 @@
         const SWIPE_THRESHOLD = 20;
         const gameApp = document.getElementById('game-app');
 
+        // Prevent default mobile scrolling/refreshing when trying to swipe!
+        gameApp.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
         gameApp.addEventListener('touchstart', (e) => {
-            if (e.target.closest('button')) return;
+            if (e.target && e.target.closest && e.target.closest('button')) return;
             touchStartX = e.changedTouches[0].clientX; touchStartY = e.changedTouches[0].clientY;
         }, { passive: true });
         
         gameApp.addEventListener('touchend', (e) => {
-            if (e.target.closest('button')) return;
+            if (e.target && e.target.closest && e.target.closest('button')) return;
             touchEndX = e.changedTouches[0].clientX; touchEndY = e.changedTouches[0].clientY;
             processSwipeGesture();
         }, { passive: true });
 
         let isMouseDown = false;
         gameApp.addEventListener('mousedown', (e) => {
-            if (e.target.closest('button')) return;
+            if (e.target && e.target.closest && e.target.closest('button')) return;
             isMouseDown = true;
             touchStartX = e.clientX; touchStartY = e.clientY;
         });
@@ -854,7 +890,7 @@
             } else {
                 if (mode === 'COMBAT') return; 
                 if (deltaY < -SWIPE_THRESHOLD) moveDepth(1);
-                else if (deltaY > SWIPE_THRESHOLD) moveDepth(-1); // BACKTRACK SWIPE
+                else if (deltaY > SWIPE_THRESHOLD) moveDepth(-1); 
             }
         }
 
@@ -864,7 +900,7 @@
             
             depthZ = 0; 
             displayDepthZ = 0;
-            isFacingBackwards = false; // Reset orientation for new hall
+            isFacingBackwards = false; 
             
             let idx = corridorCycle.indexOf(hallName); 
             if (idx === -1) idx = 0;
@@ -883,18 +919,14 @@
         window.turn180 = function() {
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
             
-            // INVERT FACING DIRECTION
             isFacingBackwards = !isFacingBackwards;
             
-            // INVERT DEPTH POSITION (Assuming hall length is ~8)
             depthZ = 8 - Math.max(0, Math.min(8, depthZ));
-            displayDepthZ = depthZ; // Snap camera instantly
+            displayDepthZ = depthZ; 
             
-            // INVERT LANE (If you were on left wall, you are now on right wall)
             currentLane = 2 - currentLane;
-            displayLane = currentLane; // Snap lane instantly
+            displayLane = currentLane; 
             
-            // Check if we are still magically at the intersection point after flipping
             if (depthZ === 4) {
                 document.getElementById('intersection-ui').classList.remove('hidden'); 
                 document.getElementById('intersection-ui').classList.add('flex');
@@ -1034,7 +1066,6 @@
                 document.getElementById('intersection-ui').classList.add('hidden'); document.getElementById('intersection-ui').classList.remove('flex');
             }
 
-            // TRIGGER ENCOUNTERS BASED ON TRUE PERSPECTIVE ACTUAL LOCATIONS!
             if (mode === 'EXPLORE_DAY') {
                 for (let key in npcs) {
                     let npc = npcs[key];
@@ -1219,8 +1250,6 @@
                     if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(l) && currentLane === l) {
                         const vpX = W * 0.50; const vpY = H * 0.35;
                         const cueX = vpX + (l - 1) * 35;
-                        
-                        // PERFECTED INDICATOR HEIGHT! Sits beautifully right above the enemy head
                         const cueY = vpY - 80; 
 
                         ctx.shadowColor = '#ef4444';
@@ -1298,8 +1327,6 @@
             if (mode === 'EXPLORE_DAY') {
                 for (let key in npcs) {
                     let npc = npcs[key];
-                    
-                    // TRUE PERSPECTIVE: Calculate absolute location based on which way Xio is facing!
                     let actualDepth = isFacingBackwards ? (8 - npc.depth) : npc.depth;
                     let actualLane = isFacingBackwards ? (2 - npc.lane) : npc.lane;
                     
@@ -1333,8 +1360,6 @@
             } else if (mode === 'EXPLORE_NIGHT' || mode === 'INVENTORY') {
                 for (let key in nightEnemies) {
                     let en = nightEnemies[key];
-                    
-                    // TRUE PERSPECTIVE
                     let actualDepth = isFacingBackwards ? (8 - en.depth) : en.depth;
                     let actualLane = isFacingBackwards ? (2 - en.lane) : en.lane;
                     
@@ -1352,7 +1377,7 @@
                         const w = (en.type === 'BOSS' ? 100 : 70) * scale;
                         const h = (en.type === 'BOSS' ? 180 : 130) * scale;
                         
-                        // Drop Shadow to anchor to the floor!
+                        // Drop Shadow
                         ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
                         ctx.beginPath(); ctx.ellipse(x, y, w*0.6, w*0.2, 0, 0, Math.PI*2); ctx.fill();
 
@@ -1398,7 +1423,7 @@
             }
 
             const cryptidX = vpX + (cryptid.displayLane - 1) * 35;
-            const cryptidY = vpY + 30; // LOWERED so they sit nicely on the floor!
+            const cryptidY = vpY + 30; 
             let isBoss = nightEnemies[activeCombatKey] && nightEnemies[activeCombatKey].type === 'BOSS';
 
             // UPSCALED COMBAT SPRITES
