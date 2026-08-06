@@ -376,16 +376,16 @@
 
         // --- ENTITY PLACEMENT MAPS ---
         let npcs = {
-            anya: { name: "Anya", present: true, avatar: "A", color: "#ec4899", hall: "", lane: 0, depth: 0 },
-            beatrix: { name: "Beatrix", present: true, avatar: "B", color: "#a855f7", hall: "", lane: 0, depth: 0 },
-            mina: { name: "Mina", present: true, avatar: "M", color: "#38bdf8", hall: "", lane: 0, depth: 0 }
+            anya: { name: "Anya", present: true, avatar: "A", color: "#ec4899", hall: "", lane: 0, depth: 0, displayLane: 0, displayDepth: 0 },
+            beatrix: { name: "Beatrix", present: true, avatar: "B", color: "#a855f7", hall: "", lane: 0, depth: 0, displayLane: 0, displayDepth: 0 },
+            mina: { name: "Mina", present: true, avatar: "M", color: "#38bdf8", hall: "", lane: 0, depth: 0, displayLane: 0, displayDepth: 0 }
         };
 
         let nightEnemies = {
-            minion1: { type: 'MINION', name: "Lurker Entity", present: true, hall: "", lane: 0, depth: 0 },
-            minion2: { type: 'MINION', name: "Shadow Stalker", present: true, hall: "", lane: 0, depth: 0 },
-            minion3: { type: 'MINION', name: "Chapel Wraith", present: true, hall: "", lane: 0, depth: 0 },
-            boss: { type: 'BOSS', name: "The Anomaly", present: true, hall: "", lane: 0, depth: 0 }
+            minion1: { type: 'MINION', name: "Lurker Entity", present: true, hall: "", lane: 0, depth: 0, displayLane: 0, displayDepth: 0 },
+            minion2: { type: 'MINION', name: "Shadow Stalker", present: true, hall: "", lane: 0, depth: 0, displayLane: 0, displayDepth: 0 },
+            minion3: { type: 'MINION', name: "Chapel Wraith", present: true, hall: "", lane: 0, depth: 0, displayLane: 0, displayDepth: 0 },
+            boss: { type: 'BOSS', name: "The Anomaly", present: true, hall: "", lane: 0, depth: 0, displayLane: 0, displayDepth: 0 }
         };
 
         let floatingTexts = [];
@@ -427,7 +427,9 @@
                 usedSpots.add(spotKey);
                 ent.hall = availableHalls[i % availableHalls.length];
                 ent.lane = lane;
+                ent.displayLane = lane;
                 ent.depth = depth;
+                ent.displayDepth = depth;
                 i++;
             }
         }
@@ -831,7 +833,6 @@
             updateClockDisplay();
         };
 
-        // --- BULLETPROOF TOUCH & SWIPE DETECTION ---
         let pointerStartX = 0, pointerStartY = 0;
         let isPointerDown = false;
 
@@ -861,17 +862,38 @@
             }
         });
 
-        // --- 180 DEGREE TURN LOGIC ---
+        // --- MASTER COLLISION CHECKER ---
+        // Runs after EVERY move/turn to see if you collided with an entity!
+        function checkEncounters() {
+            if (mode === 'EXPLORE_DAY') {
+                for (let key in npcs) {
+                    let npc = npcs[key];
+                    let absolutePlayerLane = isFacingBackwards ? (2 - currentLane) : currentLane;
+                    if (npc.present && npc.hall === hallName && absolutePlayerLane === npc.lane && depthZ === npc.depth) {
+                        triggerNPCDialogue(key.toUpperCase()); 
+                        return; // Stop checking
+                    }
+                }
+                if (depthZ === 8 && (period < 3 || period === 4)) openClassroomSelection();
+            } else if (mode === 'EXPLORE_NIGHT') {
+                for (let key in nightEnemies) {
+                    let en = nightEnemies[key];
+                    let absolutePlayerLane = isFacingBackwards ? (2 - currentLane) : currentLane;
+                    if (en.present && en.hall === hallName && absolutePlayerLane === en.lane && depthZ === en.depth) {
+                        startCombatMode(key); 
+                        return; // Stop checking
+                    }
+                }
+            }
+        }
+
         window.turnCorridor = function(dir) {
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
             
-            depthZ = 0; 
-            displayDepthZ = 0;
-            isFacingBackwards = false; 
+            depthZ = 0; displayDepthZ = 0; isFacingBackwards = false; 
             
             let idx = corridorCycle.indexOf(hallName); 
             if (idx === -1) idx = 0;
-            
             idx = dir < 0 ? (idx - 1 + corridorCycle.length) % corridorCycle.length : (idx + 1) % corridorCycle.length;
             
             hallName = corridorCycle[idx]; 
@@ -881,6 +903,7 @@
             document.getElementById('intersection-ui').classList.remove('flex');
             
             addFloatingText(`ENTERED ${hallName.toUpperCase()}`, W/2, H/2, '#c084fc');
+            checkEncounters(); // Collision check
         };
 
         window.turn180 = function() {
@@ -898,11 +921,10 @@
                 document.getElementById('intersection-ui').classList.add('hidden'); 
                 document.getElementById('intersection-ui').classList.remove('flex');
             }
-            
             addFloatingText(`TURNED 180°`, W/2, H/2, '#c084fc');
+            checkEncounters(); // Collision check
         };
 
-        // --- COMBAT ACTIONS ---
         function startAttackCharge() {
             if (mode !== 'COMBAT') return;
             player.isHoldingAttack = true;
@@ -1011,8 +1033,8 @@
                     for (let key in nightEnemies) {
                         let en = nightEnemies[key];
                         if (en.present && en.hall === hallName) {
+                            let absolutePlayerLane = isFacingBackwards ? (2 - currentLane) : currentLane;
                             if (en.type === 'BOSS') {
-                                let absolutePlayerLane = isFacingBackwards ? (2 - currentLane) : currentLane;
                                 if (en.lane < absolutePlayerLane) en.lane++;
                                 else if (en.lane > absolutePlayerLane) en.lane--;
                             } else {
@@ -1023,6 +1045,7 @@
                         }
                     }
                 }
+                checkEncounters(); // Collision check
             }
         }
 
@@ -1037,7 +1060,7 @@
                 stepBobTime = 1.0;
                 advanceTime(5); 
                 
-                if (dz > 0) {
+                if (actualDz > 0) {
                     addFloatingText(`FORWARD (+5m)`, W/2, H - 140, '#4ade80');
                 } else {
                     addFloatingText(`BACKSTEP (+5m)`, W/2, H - 140, '#38bdf8');
@@ -1058,33 +1081,13 @@
                         }
                     }
                 }
+                checkEncounters(); // Collision check
             }
 
             if (depthZ === 4) {
                 document.getElementById('intersection-ui').classList.remove('hidden'); document.getElementById('intersection-ui').classList.add('flex');
             } else {
                 document.getElementById('intersection-ui').classList.add('hidden'); document.getElementById('intersection-ui').classList.remove('flex');
-            }
-
-            if (mode === 'EXPLORE_DAY') {
-                for (let key in npcs) {
-                    let npc = npcs[key];
-                    let entityScreenLane = isFacingBackwards ? (2 - npc.lane) : npc.lane;
-
-                    if (npc.present && npc.hall === hallName && currentLane === entityScreenLane && depthZ === npc.depth) {
-                        triggerNPCDialogue(key.toUpperCase()); return;
-                    }
-                }
-                if (depthZ === 8 && (period < 3 || period === 4)) openClassroomSelection();
-            } else if (mode === 'EXPLORE_NIGHT') {
-                for (let key in nightEnemies) {
-                    let en = nightEnemies[key];
-                    let entityScreenLane = isFacingBackwards ? (2 - en.lane) : en.lane;
-
-                    if (en.present && en.hall === hallName && currentLane === entityScreenLane && depthZ === en.depth) {
-                        startCombatMode(key); return;
-                    }
-                }
             }
         }
 
@@ -1093,7 +1096,15 @@
 
             displayDepthZ += (depthZ - displayDepthZ) * 0.15;
             displayLane += (currentLane - displayLane) * 0.2;
-            cryptid.displayLane += (cryptid.lane - cryptid.displayLane) * 0.15;
+            
+            for (let key in npcs) {
+                npcs[key].displayDepth += (npcs[key].depth - npcs[key].displayDepth) * 0.15;
+                npcs[key].displayLane += (npcs[key].lane - npcs[key].displayLane) * 0.15;
+            }
+            for (let key in nightEnemies) {
+                nightEnemies[key].displayDepth += (nightEnemies[key].depth - nightEnemies[key].displayDepth) * 0.15;
+                nightEnemies[key].displayLane += (nightEnemies[key].lane - nightEnemies[key].displayLane) * 0.15;
+            }
 
             if (stepBobTime > 0) { stepBobTime -= 0.05; stepBobY = Math.sin(stepBobTime * Math.PI * 4) * 6; } else stepBobY = 0;
             if (Math.abs(leanAngle) > 0.001) leanAngle *= 0.85; else leanAngle = 0;
@@ -1271,16 +1282,16 @@
         }
 
         function drawEntity(entity, color, isBoss) {
-            let dist = isFacingBackwards ? (displayDepthZ - entity.depth) : (entity.depth - displayDepthZ);
+            let dist = isFacingBackwards ? (displayDepthZ - entity.displayDepth) : (entity.displayDepth - displayDepthZ);
             
-            if (entity.present && entity.hall === hallName && dist >= 0 && dist <= 12) {
+            if (entity.present && entity.hall === hallName && dist >= -0.2 && dist <= 12) {
                 const zVal = Math.max(0, Math.min(1, (12 - dist) / 12)); 
                 const zFactor = Math.pow(zVal, 1.8);
                 
                 const vpX = W * 0.50; const vpY = H * 0.38;
                 const y = vpY + (H - vpY) * zFactor;
                 
-                let renderLane = isFacingBackwards ? (2 - entity.lane) : entity.lane;
+                let renderLane = isFacingBackwards ? (2 - entity.displayLane) : entity.displayLane;
                 const laneCenterOffset = (renderLane - 1) * (30 + (110 - 30) * zFactor);
                 const x = vpX + laneCenterOffset;
                 
@@ -1321,8 +1332,7 @@
                 ctx.beginPath(); ctx.moveTo(lx, vpY); ctx.lineTo(rx, H); ctx.stroke();
             }
 
-            let floorOffset = (displayDepthZ % 1 + 1) % 1;
-            if (isFacingBackwards) floorOffset = 1 - floorOffset;
+            let floorOffset = ((isFacingBackwards ? -displayDepthZ : displayDepthZ) % 1 + 1) % 1;
 
             for (let i = 0; i <= 12; i++) {
                 const zVal = (i + floorOffset) / 12;
