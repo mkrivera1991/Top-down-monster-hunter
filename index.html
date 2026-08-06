@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Midnight X: Repaired Perspective Engine</title>
+    <title>Midnight X: Flawless Absolute Perspective Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
-        body {
+        body, html {
             font-family: 'Inter', sans-serif;
             background-color: #050507;
             color: #f4f4f5;
+            overscroll-behavior: none; 
             touch-action: none; 
             user-select: none;
             -webkit-user-select: none;
             overflow: hidden;
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
         }
         .title-font {
             font-family: 'Cinzel', serif;
@@ -36,10 +39,10 @@
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen bg-zinc-950 p-1 sm:p-4">
+<body class="flex flex-col items-center justify-center bg-zinc-950 p-0 sm:p-4">
 
     <!-- PORTRAIT CONTAINER -->
-    <div id="game-app" class="relative w-full max-w-sm aspect-[9/16] bg-black rounded-3xl overflow-hidden shadow-2xl border-2 border-zinc-800 flex flex-col cursor-grab active:cursor-grabbing" style="touch-action: none;">
+    <div id="game-app" class="relative w-full max-w-sm h-full sm:h-auto aspect-[9/16] bg-black sm:rounded-3xl overflow-hidden shadow-2xl sm:border-2 border-zinc-800 flex flex-col cursor-grab active:cursor-grabbing" style="touch-action: none;">
         
         <!-- TOP HUD -->
         <div id="hud" class="absolute top-0 left-0 right-0 z-30 p-3 bg-gradient-to-b from-black/90 via-black/60 to-transparent flex flex-col gap-2 pointer-events-none">
@@ -118,16 +121,18 @@
         </div>
 
         <!-- CLASSROOM SELECTION MODAL -->
-        <div id="class-modal" class="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm hidden flex-col justify-center p-4">
+        <div id="class-modal" class="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm hidden flex-col justify-center p-4 pointer-events-auto">
             <div class="bg-zinc-900 border-2 border-violet-600 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
                 <div class="border-b border-zinc-800 pb-2">
                     <h3 id="class-title" class="font-black text-violet-400 text-xs title-font">PERIOD: SELECT CLASSROOM</h3>
                     <p class="text-[9px] text-zinc-400">Attending class consumes 2 hours of in-game time.</p>
                 </div>
                 <div id="class-options" class="flex flex-col gap-2">
-                    <button onclick="attendClass('CHEMISTRY')" class="p-3 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500 rounded-xl text-left transition">
-                        <div class="font-black text-emerald-300 text-xs">A) ADVANCED CHEMISTRY LAB</div>
-                        <div class="text-[10px] text-zinc-300">Earn crafting materials & buffs (+2 Hours)</div>
+                    <button onclick="attendClass('CHEMISTRY')" class="p-3 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500 rounded-xl text-left transition relative overflow-hidden group">
+                        <div class="relative z-10">
+                            <div class="font-black text-emerald-300 text-xs">A) ADVANCED CHEMISTRY LAB</div>
+                            <div class="text-[10px] text-zinc-300">Stat Boost: +10 Weapon Damage (+2 Hours)</div>
+                        </div>
                     </button>
                     <button onclick="attendClass('HISTORY')" class="p-3 bg-violet-950/80 hover:bg-violet-900 border border-violet-500 rounded-xl text-left transition">
                         <div class="font-black text-violet-300 text-xs">B) CATHOLIC HISTORY & MYTHOLOGY</div>
@@ -138,7 +143,7 @@
         </div>
 
         <!-- LUNCH PERIOD MODAL -->
-        <div id="lunch-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
+        <div id="lunch-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4 pointer-events-auto">
             <div class="bg-zinc-900 border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full text-center">
                 <h3 class="font-black text-amber-400 text-sm title-font">12:00 PM — LUNCH BELL</h3>
                 <p class="text-xs text-zinc-300">The lunch bell rings! Classmates are scattered across different wings of the school. Explore to find them!</p>
@@ -149,7 +154,7 @@
         </div>
 
         <!-- MAP SELECTION MODAL -->
-        <div id="map-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
+        <div id="map-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4 pointer-events-auto">
             <div class="bg-zinc-900 border-2 border-indigo-500/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full text-center">
                 <h3 class="font-black text-indigo-400 text-sm title-font">3:00 PM — SELECT HUNT TARGET</h3>
                 <p class="text-[10px] text-zinc-300 mb-2">Review anomaly bounties. Selecting a location takes 2 hours of prep time.</p>
@@ -170,7 +175,7 @@
         </div>
 
         <!-- SHOP MODAL -->
-        <div id="shop-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
+        <div id="shop-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4 pointer-events-auto">
             <div class="bg-zinc-900 border-2 border-amber-600/80 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
                 <div class="border-b border-zinc-800 pb-2">
                     <h3 class="font-black text-amber-400 text-sm title-font flex justify-between">
@@ -209,8 +214,8 @@
             </div>
         </div>
 
-        <!-- INVENTORY MODAL (DURING HUNT) -->
-        <div id="inventory-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4">
+        <!-- INVENTORY MODAL -->
+        <div id="inventory-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-center p-4 pointer-events-auto">
             <div class="bg-zinc-900 border-2 border-indigo-500/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
                 <div class="border-b border-zinc-800 pb-2 flex justify-between items-center">
                     <h3 class="font-black text-indigo-400 text-sm title-font">BACKPACK</h3>
@@ -238,7 +243,7 @@
         </div>
 
         <!-- DIALOGUE MODAL -->
-        <div id="dialogue-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-end p-4">
+        <div id="dialogue-modal" class="absolute inset-0 z-40 bg-black/85 backdrop-blur-sm hidden flex-col justify-end p-4 pointer-events-auto">
             <div class="bg-zinc-900 border-2 border-violet-600/60 rounded-2xl p-4 shadow-2xl space-y-3 w-full">
                 <div class="flex items-center gap-2 border-b border-zinc-800 pb-2">
                     <div id="npc-avatar" class="w-8 h-8 rounded-full bg-pink-600 border-2 border-white flex items-center justify-center font-black text-xs text-white">A</div>
@@ -253,7 +258,7 @@
         </div>
 
         <!-- RESULTS MODAL -->
-        <div id="results-modal" class="absolute inset-0 z-50 bg-black/95 hidden flex-col items-center justify-center p-6 text-center">
+        <div id="results-modal" class="absolute inset-0 z-50 bg-black/95 hidden flex-col items-center justify-center p-6 text-center pointer-events-auto">
             <h2 id="res-title" class="text-2xl font-black text-violet-400 title-font mb-1">HUNT CONCLUDED</h2>
             <p id="res-subtitle" class="text-[10px] text-zinc-400 mb-6">...</p>
             <div id="res-stats" class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-left text-xs space-y-2 w-full mb-6"></div>
@@ -337,6 +342,7 @@
         let parryDamageBuff = 0; 
         let cluesGathered = [];
 
+        // currentLane represents the VISUAL screen lane (0=Left, 1=Center, 2=Right)
         let currentLane = 1; 
         let depthZ = 0;       
         let hallName = "Main Hallway";
@@ -395,7 +401,6 @@
             document.getElementById('shop-money-display').textContent = `$${money}`;
         }
 
-        // --- MAP RANDOMIZERS ---
         function randomizeLocations(entitiesObj, isNight = false) {
             const usedSpots = new Set();
             let availableHalls = [...corridorCycle];
@@ -428,7 +433,6 @@
         }
         randomizeLocations(npcs, false);
 
-        // --- TIME ADVANCEMENT LOGIC ---
         function advanceTime(minutesToAdd) {
             minute += minutesToAdd;
             while (minute >= 60) {
@@ -475,7 +479,6 @@
             }
         };
 
-        // --- PREP PHASE (MAP & SHOP) ---
         function triggerMapModal() {
             mode = 'MAP_SELECT';
             document.getElementById('daytime-btn-group').classList.add('hidden');
@@ -503,11 +506,7 @@
 
         window.buyItem = function(itemType) {
             let cost = itemType === 'POTION' ? 50 : 100;
-            
-            if (money < cost) {
-                alert("Not enough money!"); 
-                return;
-            }
+            if (money < cost) { alert("Not enough money!"); return; }
             
             money -= cost;
             updateMoneyUI();
@@ -516,13 +515,9 @@
             if (itemType === 'ENHANCER') inventory.enhancers++;
             
             advanceTime(120); 
-
-            if (hour >= 21) {
-                startNightTransition(); 
-            }
+            if (hour >= 21) startNightTransition(); 
         };
 
-        // --- INVENTORY MODAL (NIGHT EXPLORATION) ---
         window.openInventory = function() {
             if (mode !== 'EXPLORE_NIGHT') return;
             mode = 'INVENTORY'; 
@@ -564,7 +559,6 @@
             updateHUD();
         };
 
-        // --- MODAL TRIGGERS (DAY) ---
         function openClassroomSelection() {
             if (mode === 'EXPLORE_NIGHT') return;
             mode = 'CLASS_SELECT';
@@ -595,7 +589,6 @@
             mode = 'EXPLORE_DAY';
         };
 
-        // --- NPC DIALOGUE SYSTEM ---
         function triggerNPCDialogue(npcKey) {
             mode = 'DIALOGUE';
             advanceTime(20);
@@ -664,7 +657,6 @@
             mode = 'EXPLORE_DAY';
         };
 
-        // --- NIGHT TRANSITION ---
         window.startNightTransition = function() {
             document.getElementById('shop-modal').classList.add('hidden');
             document.getElementById('shop-modal').classList.remove('flex');
@@ -696,7 +688,6 @@
             }, 80);
         }
 
-        // --- COMBAT SYSTEM ---
         function startCombatMode(enemyKey) {
             mode = 'COMBAT';
             activeCombatKey = enemyKey;
@@ -728,7 +719,6 @@
             document.getElementById('night-explore-btn-group').classList.add('hidden');
             document.getElementById('night-explore-btn-group').classList.remove('flex');
             
-            // HIDE INTERSECTION UI DURING COMBAT
             document.getElementById('intersection-ui').classList.add('hidden');
             document.getElementById('intersection-ui').classList.remove('flex');
             
@@ -760,7 +750,6 @@
                     mode = 'EXPLORE_NIGHT';
                     document.getElementById('turn-badge').classList.add('hidden');
                     
-                    // RESTORE INTERSECTION UI IF STILL AT DEPTH 4 AFTER FIGHT
                     if (depthZ === 4) {
                         document.getElementById('intersection-ui').classList.remove('hidden');
                         document.getElementById('intersection-ui').classList.add('flex');
@@ -818,6 +807,7 @@
             curseLevel = 0;
             isFacingBackwards = false;
             document.getElementById('curse-tag').classList.add('hidden');
+            cluesGathered = [];
 
             document.getElementById('res-stats').innerHTML = `
                 <div class="flex justify-between"><span>Wallet Balance:</span> <strong class="text-emerald-400">$${money}</strong></div>
@@ -841,60 +831,37 @@
             updateClockDisplay();
         };
 
-        // --- SWIPE GESTURE DETECTION (MENU LOCKED) ---
-        let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
-        const SWIPE_THRESHOLD = 20;
-        const gameApp = document.getElementById('game-app');
+        // --- BULLETPROOF TOUCH & SWIPE DETECTION ---
+        let pointerStartX = 0, pointerStartY = 0;
+        let isPointerDown = false;
 
-        // Prevent default mobile scrolling/refreshing when trying to swipe!
-        gameApp.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-        }, { passive: false });
-
-        gameApp.addEventListener('touchstart', (e) => {
+        window.addEventListener('pointerdown', (e) => {
             if (e.target && e.target.closest && e.target.closest('button')) return;
-            touchStartX = e.changedTouches[0].clientX; touchStartY = e.changedTouches[0].clientY;
-        }, { passive: true });
-        
-        gameApp.addEventListener('touchend', (e) => {
-            if (e.target && e.target.closest && e.target.closest('button')) return;
-            touchEndX = e.changedTouches[0].clientX; touchEndY = e.changedTouches[0].clientY;
-            processSwipeGesture();
-        }, { passive: true });
-
-        let isMouseDown = false;
-        gameApp.addEventListener('mousedown', (e) => {
-            if (e.target && e.target.closest && e.target.closest('button')) return;
-            isMouseDown = true;
-            touchStartX = e.clientX; touchStartY = e.clientY;
+            isPointerDown = true;
+            pointerStartX = e.clientX;
+            pointerStartY = e.clientY;
         });
 
-        gameApp.addEventListener('mouseup', (e) => {
-            if (!isMouseDown) return;
-            isMouseDown = false;
-            touchEndX = e.clientX; touchEndY = e.clientY;
-            processSwipeGesture();
-        });
+        window.addEventListener('pointerup', (e) => {
+            if (!isPointerDown) return;
+            isPointerDown = false;
 
-        function processSwipeGesture() {
-            if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT' && mode !== 'COMBAT') return;
+            const deltaX = e.clientX - pointerStartX;
+            const deltaY = e.clientY - pointerStartY;
 
-            const deltaX = touchEndX - touchStartX;
-            const deltaY = touchEndY - touchStartY;
-
-            if (Math.abs(deltaX) < SWIPE_THRESHOLD && Math.abs(deltaY) < SWIPE_THRESHOLD) return;
+            if (Math.abs(deltaX) < 20 && Math.abs(deltaY) < 20) return;
 
             if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                if (deltaX > SWIPE_THRESHOLD) shiftLane(1);
-                else if (deltaX < -SWIPE_THRESHOLD) shiftLane(-1);
+                if (deltaX > 20) shiftLane(1);
+                else if (deltaX < -20) shiftLane(-1);
             } else {
                 if (mode === 'COMBAT') return; 
-                if (deltaY < -SWIPE_THRESHOLD) moveDepth(1);
-                else if (deltaY > SWIPE_THRESHOLD) moveDepth(-1); 
+                if (deltaY < -20) moveDepth(1);
+                else if (deltaY > 20) moveDepth(-1); 
             }
-        }
+        });
 
-        // --- 180 DEGREE TURN LOGIC (TRUE PERSPECTIVE FLIP!) ---
+        // --- 180 DEGREE TURN LOGIC ---
         window.turnCorridor = function(dir) {
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
             
@@ -920,9 +887,6 @@
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
             
             isFacingBackwards = !isFacingBackwards;
-            
-            depthZ = 8 - Math.max(0, Math.min(8, depthZ));
-            displayDepthZ = depthZ; 
             
             currentLane = 2 - currentLane;
             displayLane = currentLane; 
@@ -1009,12 +973,11 @@
             }
         }
 
-        // --- BUTTON EVENT LISTENERS ---
         const atkBtn = document.getElementById('pad-action-attack');
-        atkBtn.addEventListener('mousedown', startAttackCharge); atkBtn.addEventListener('mouseup', releaseAttack);
-        atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startAttackCharge(); });
-        atkBtn.addEventListener('touchend', (e) => { e.preventDefault(); releaseAttack(); });
-        document.getElementById('pad-action-parry').onclick = () => executePrecisionParry();
+        atkBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); startAttackCharge(); });
+        atkBtn.addEventListener('pointerup', (e) => { e.preventDefault(); releaseAttack(); });
+        atkBtn.addEventListener('pointercancel', (e) => { e.preventDefault(); releaseAttack(); });
+        document.getElementById('pad-action-parry').addEventListener('pointerdown', (e) => { e.preventDefault(); executePrecisionParry(); });
 
         window.addEventListener('keydown', (e) => {
             if (keys[e.code]) return; keys[e.code] = true;
@@ -1033,21 +996,42 @@
         });
         window.addEventListener('keyup', (e) => { keys[e.code] = false; if (mode === 'COMBAT' && e.code === 'KeyZ') releaseAttack(); });
 
-        // --- NAVIGATION LOGIC ---
         function shiftLane(dir) {
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT' && mode !== 'COMBAT') return;
             if (mode === 'COMBAT' && player.isHoldingAttack) { addFloatingText(`LOCKED IN HEAVY!`, W/2, H - 110, '#f59e0b'); return; }
             
             const prevLane = currentLane;
             currentLane = Math.max(0, Math.min(2, currentLane + dir));
-            if (prevLane !== currentLane) { leanAngle = dir * 0.08; stepBobTime = 1.0; }
+            
+            if (prevLane !== currentLane) { 
+                leanAngle = dir * 0.08; 
+                stepBobTime = 1.0; 
+
+                if (mode === 'EXPLORE_NIGHT') {
+                    for (let key in nightEnemies) {
+                        let en = nightEnemies[key];
+                        if (en.present && en.hall === hallName) {
+                            if (en.type === 'BOSS') {
+                                let absolutePlayerLane = isFacingBackwards ? (2 - currentLane) : currentLane;
+                                if (en.lane < absolutePlayerLane) en.lane++;
+                                else if (en.lane > absolutePlayerLane) en.lane--;
+                            } else {
+                                if (Math.random() < 0.6) {
+                                    en.lane = Math.max(0, Math.min(2, en.lane + (Math.random() < 0.5 ? -1 : 1)));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         function moveDepth(dz) {
             if (mode !== 'EXPLORE_DAY' && mode !== 'EXPLORE_NIGHT') return;
 
+            let actualDz = isFacingBackwards ? -dz : dz;
             const prevZ = depthZ;
-            depthZ = Math.max(0, Math.min(8, depthZ + dz));
+            depthZ = Math.max(0, Math.min(8, depthZ + actualDz));
             
             if (prevZ !== depthZ) {
                 stepBobTime = 1.0;
@@ -1057,6 +1041,22 @@
                     addFloatingText(`FORWARD (+5m)`, W/2, H - 140, '#4ade80');
                 } else {
                     addFloatingText(`BACKSTEP (+5m)`, W/2, H - 140, '#38bdf8');
+                }
+
+                if (mode === 'EXPLORE_NIGHT') {
+                    for (let key in nightEnemies) {
+                        let en = nightEnemies[key];
+                        if (en.present && en.hall === hallName) {
+                            if (en.depth < depthZ) en.depth++;
+                            else if (en.depth > depthZ) en.depth--;
+
+                            if (en.type === 'BOSS') {
+                                let absolutePlayerLane = isFacingBackwards ? (2 - currentLane) : currentLane;
+                                if (en.lane < absolutePlayerLane) en.lane++;
+                                else if (en.lane > absolutePlayerLane) en.lane--;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1069,34 +1069,30 @@
             if (mode === 'EXPLORE_DAY') {
                 for (let key in npcs) {
                     let npc = npcs[key];
-                    let actualDepth = isFacingBackwards ? (8 - npc.depth) : npc.depth;
-                    let actualLane = isFacingBackwards ? (2 - npc.lane) : npc.lane;
+                    let entityScreenLane = isFacingBackwards ? (2 - npc.lane) : npc.lane;
 
-                    if (npc.present && npc.hall === hallName && currentLane === actualLane && depthZ === actualDepth) {
+                    if (npc.present && npc.hall === hallName && currentLane === entityScreenLane && depthZ === npc.depth) {
                         triggerNPCDialogue(key.toUpperCase()); return;
                     }
                 }
-                if (depthZ >= 8 && (period < 3 || period === 4)) openClassroomSelection();
+                if (depthZ === 8 && (period < 3 || period === 4)) openClassroomSelection();
             } else if (mode === 'EXPLORE_NIGHT') {
                 for (let key in nightEnemies) {
                     let en = nightEnemies[key];
-                    let actualDepth = isFacingBackwards ? (8 - en.depth) : en.depth;
-                    let actualLane = isFacingBackwards ? (2 - en.lane) : en.lane;
+                    let entityScreenLane = isFacingBackwards ? (2 - en.lane) : en.lane;
 
-                    if (en.present && en.hall === hallName && currentLane === actualLane && depthZ === actualDepth) {
+                    if (en.present && en.hall === hallName && currentLane === entityScreenLane && depthZ === en.depth) {
                         startCombatMode(key); return;
                     }
                 }
             }
         }
 
-        // --- UPDATE LOOP ---
         function update() {
             updateHUD();
 
             displayDepthZ += (depthZ - displayDepthZ) * 0.15;
             displayLane += (currentLane - displayLane) * 0.2;
-            
             cryptid.displayLane += (cryptid.lane - cryptid.displayLane) * 0.15;
 
             if (stepBobTime > 0) { stepBobTime -= 0.05; stepBobY = Math.sin(stepBobTime * Math.PI * 4) * 6; } else stepBobY = 0;
@@ -1215,7 +1211,6 @@
             }
         }
 
-        // --- RENDER PIPELINE ---
         function render() {
             ctx.save();
             ctx.clearRect(0, 0, W, H);
@@ -1238,13 +1233,12 @@
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
                 ctx.fillStyle = ft.color; ctx.font = '900 12px Inter, sans-serif'; 
-                ctx.textAlign = 'left'; 
-                ctx.fillText(ft.str, ft.x - 30, ft.y);
+                ctx.textAlign = 'center'; 
+                ctx.fillText(ft.str, ft.x, ft.y);
                 ft.y -= 0.6; ft.life--;
                 if (ft.life <= 0) floatingTexts.splice(i, 1);
             }
 
-            // --- DRAW PARRY INDICATOR EXPLICITLY OVER EVERYTHING ---
             if (mode === 'COMBAT') {
                 for (let l = 0; l < 3; l++) {
                     if (cryptid.showParryIndicator && cryptid.telegraphedLanes.includes(l) && currentLane === l) {
@@ -1276,7 +1270,45 @@
             ctx.restore(); requestAnimationFrame(() => { update(); render(); });
         }
 
-        // 1. DYNAMIC 3-LANE OVERWORLD CORRIDOR EXPLORATION WITH TRUE Z-DEPTH PERSPECTIVE!
+        function drawEntity(entity, color, isBoss) {
+            let dist = isFacingBackwards ? (displayDepthZ - entity.depth) : (entity.depth - displayDepthZ);
+            
+            if (entity.present && entity.hall === hallName && dist >= 0 && dist <= 12) {
+                const zVal = Math.max(0, Math.min(1, (12 - dist) / 12)); 
+                const zFactor = Math.pow(zVal, 1.8);
+                
+                const vpX = W * 0.50; const vpY = H * 0.38;
+                const y = vpY + (H - vpY) * zFactor;
+                
+                let renderLane = isFacingBackwards ? (2 - entity.lane) : entity.lane;
+                const laneCenterOffset = (renderLane - 1) * (30 + (110 - 30) * zFactor);
+                const x = vpX + laneCenterOffset;
+                
+                const scale = 0.15 + 1.85 * zFactor; 
+                let w, h;
+                
+                if (isBoss === undefined) {
+                    w = 60 * scale; h = 130 * scale;
+                } else {
+                    w = (isBoss ? 100 : 70) * scale; h = (isBoss ? 180 : 130) * scale;
+                }
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.beginPath(); ctx.ellipse(x, y, w*0.6, w*0.2, 0, 0, Math.PI*2); ctx.fill();
+
+                ctx.fillStyle = color;
+                if (isBoss !== undefined) ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+                ctx.fillRect(x - w/2, y - h, w, h);
+                ctx.globalAlpha = 1.0;
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `900 ${Math.max(6, 12 * scale)}px sans-serif`;
+                ctx.textAlign = 'center';
+                let label = isBoss !== undefined ? "⚠ " + entity.name : entity.name;
+                ctx.fillText(label, x, y - h - 5 * scale);
+            }
+        }
+
         function renderDynamic3LaneExploration() {
             ctx.fillStyle = mode.includes('NIGHT') || mode === 'INVENTORY' ? '#020202' : '#18181b';
             ctx.fillRect(0, 0, W, H);
@@ -1289,8 +1321,12 @@
                 ctx.beginPath(); ctx.moveTo(lx, vpY); ctx.lineTo(rx, H); ctx.stroke();
             }
 
+            let floorOffset = (displayDepthZ % 1 + 1) % 1;
+            if (isFacingBackwards) floorOffset = 1 - floorOffset;
+
             for (let i = 0; i <= 12; i++) {
-                const zVal = (i + (displayDepthZ % 1)) / 12;
+                const zVal = (i + floorOffset) / 12;
+                if (zVal > 1) continue;
                 const y = vpY + (H - vpY) * Math.pow(Math.max(0, Math.min(1, zVal)), 1.8);
                 const widthAtY = 30 + (W * 0.75) * Math.pow(zVal, 1.8);
                 ctx.strokeStyle = mode.includes('NIGHT') || mode === 'INVENTORY' ? 'rgba(49, 46, 129, 0.4)' : 'rgba(82, 82, 91, 0.4)';
@@ -1298,8 +1334,8 @@
             }
 
             ctx.strokeStyle = mode.includes('NIGHT') || mode === 'INVENTORY' ? '#3730a3' : '#52525b';
-            ctx.lineWidth = 2; const doorScale = 1 + (displayDepthZ / 8) * 0.3;
-            ctx.strokeRect(vpX - 45 * doorScale, vpY - 55 * doorScale, 90 * doorScale, 110 * doorScale);
+            ctx.lineWidth = 2; 
+            ctx.strokeRect(vpX - 45, vpY - 55, 90, 110);
 
             if (Math.abs(displayDepthZ - 4) < 1.5) {
                 const interY1 = vpY + (H - vpY) * Math.pow(0.4, 1.8);
@@ -1312,7 +1348,6 @@
                 ctx.beginPath(); ctx.moveTo(W, interY1); ctx.lineTo(vpX + 45, interY1 + 10); ctx.lineTo(vpX + 45, interY2); ctx.lineTo(W, interY2 + 20); ctx.closePath(); ctx.fill(); ctx.stroke();
             }
 
-            // ACTIVE LANE GLOW
             const activeLaneLx1 = vpX + (displayLane - 1.5) * 30;
             const activeLaneLx2 = vpX + (displayLane - 0.5) * 30;
             const activeLaneRx1 = W * 0.50 + (displayLane - 1.5) * 110;
@@ -1323,81 +1358,16 @@
             ctx.moveTo(activeLaneLx1, vpY); ctx.lineTo(activeLaneLx2, vpY); ctx.lineTo(activeLaneRx2, H); ctx.lineTo(activeLaneRx1, H);
             ctx.fill();
 
-            // --- RENDER ENTITIES WITH TRUE Z-DEPTH PERSPECTIVE! ---
             if (mode === 'EXPLORE_DAY') {
-                for (let key in npcs) {
-                    let npc = npcs[key];
-                    let actualDepth = isFacingBackwards ? (8 - npc.depth) : npc.depth;
-                    let actualLane = isFacingBackwards ? (2 - npc.lane) : npc.lane;
-                    
-                    const dist = actualDepth - displayDepthZ;
-                    
-                    if (npc.present && npc.hall === hallName && dist >= 0 && dist <= 12) {
-                        const zVal = Math.max(0, Math.min(1, (12 - dist) / 12)); 
-                        const zFactor = Math.pow(zVal, 1.8);
-                        
-                        const y = vpY + (H - vpY) * zFactor;
-                        const laneCenterOffset = (actualLane - 1) * (30 + (110 - 30) * zFactor);
-                        const x = vpX + laneCenterOffset;
-                        
-                        const scale = 0.15 + 1.85 * zFactor; 
-                        const w = 60 * scale;
-                        const h = 130 * scale;
-                        
-                        // Drop Shadow to anchor to the floor!
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                        ctx.beginPath(); ctx.ellipse(x, y, w*0.6, w*0.2, 0, 0, Math.PI*2); ctx.fill();
-
-                        ctx.fillStyle = npc.color;
-                        ctx.fillRect(x - w/2, y - h, w, h);
-                        
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = `900 ${Math.max(6, 12 * scale)}px sans-serif`;
-                        ctx.textAlign = 'center';
-                        ctx.fillText(npc.name, x, y - h - 5 * scale);
-                    }
-                }
+                for (let key in npcs) drawEntity(npcs[key], npcs[key].color, undefined);
             } else if (mode === 'EXPLORE_NIGHT' || mode === 'INVENTORY') {
                 for (let key in nightEnemies) {
-                    let en = nightEnemies[key];
-                    let actualDepth = isFacingBackwards ? (8 - en.depth) : en.depth;
-                    let actualLane = isFacingBackwards ? (2 - en.lane) : en.lane;
-                    
-                    const dist = actualDepth - displayDepthZ;
-                    
-                    if (en.present && en.hall === hallName && dist >= 0 && dist <= 12) {
-                        const zVal = Math.max(0, Math.min(1, (12 - dist) / 12));
-                        const zFactor = Math.pow(zVal, 1.8);
-                        
-                        const y = vpY + (H - vpY) * zFactor;
-                        const laneCenterOffset = (actualLane - 1) * (30 + (110 - 30) * zFactor);
-                        const x = vpX + laneCenterOffset;
-                        
-                        const scale = 0.15 + 1.85 * zFactor; 
-                        const w = (en.type === 'BOSS' ? 100 : 70) * scale;
-                        const h = (en.type === 'BOSS' ? 180 : 130) * scale;
-                        
-                        // Drop Shadow
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-                        ctx.beginPath(); ctx.ellipse(x, y, w*0.6, w*0.2, 0, 0, Math.PI*2); ctx.fill();
-
-                        ctx.fillStyle = en.type === 'BOSS' ? '#b91c1c' : '#ef4444';
-                        ctx.globalAlpha = 0.6 + Math.random() * 0.4;
-                        ctx.fillRect(x - w/2, y - h, w, h);
-                        ctx.globalAlpha = 1.0;
-                        
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = `900 ${Math.max(6, 12 * scale)}px sans-serif`;
-                        ctx.textAlign = 'center';
-                        ctx.fillText("⚠ " + en.name, x, y - h - 5 * scale);
-                    }
+                    drawEntity(nightEnemies[key], nightEnemies[key].type === 'BOSS' ? '#b91c1c' : '#ef4444', nightEnemies[key].type === 'BOSS');
                 }
             }
-            
             ctx.textAlign = 'left';
         }
 
-        // 2. RENDER 3-LANE COMBAT
         function render3LaneCombat() {
             ctx.fillStyle = '#030305';
             ctx.fillRect(0, 0, W, H);
@@ -1426,7 +1396,6 @@
             const cryptidY = vpY + 30; 
             let isBoss = nightEnemies[activeCombatKey] && nightEnemies[activeCombatKey].type === 'BOSS';
 
-            // UPSCALED COMBAT SPRITES
             const rX = isBoss ? 45 : 35;
             const rY = isBoss ? 85 : 65;
 
@@ -1434,7 +1403,6 @@
             ctx.beginPath(); ctx.ellipse(cryptidX, cryptidY, rX, rY, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = cryptid.isStunned ? '#eab308' : '#e11d48'; ctx.lineWidth = 3; ctx.stroke();
 
-            // Stunned Eyes
             ctx.fillStyle = cryptid.isStunned ? '#ef4444' : '#fef08a';
             ctx.fillRect(cryptidX - 12, cryptidY - 35, 8, 8); ctx.fillRect(cryptidX + 4, cryptidY - 35, 8, 8);
 
@@ -1446,7 +1414,6 @@
                 ctx.fillText(`★ STUNNED! (${stunSec}s) ★`, cryptidX, cryptidY - rY - 10);
             }
 
-            // HP Bar
             ctx.fillStyle = '#18181b'; ctx.fillRect(cryptidX - 35, cryptidY - rY - 25, 70, 6);
             ctx.fillStyle = cryptid.isStunned ? '#fef08a' : '#e11d48'; 
             ctx.fillRect(cryptidX - 35, cryptidY - rY - 25, (Math.max(0, cryptid.hp) / cryptid.maxHp) * 70, 6);
@@ -1454,7 +1421,6 @@
             ctx.textAlign = 'left';
         }
 
-        // 3. RENDER CUSTOM IMAGE ASSET
         function renderOverTheShoulderXio() {
             let targetBaseX = 180 + (displayLane - 1) * 110;
             ctx.save(); ctx.translate(targetBaseX, stepBobY);
